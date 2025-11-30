@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Settings, Loader2, Check, LogOut } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-provider"
+import { checkUsernameAvailability } from "@/lib/api"
 
 type PrivacySetting = "public" | "friends"
 
@@ -20,6 +21,7 @@ interface UserProfile {
   email_domain: string
   privacy_opt_in: boolean
   timezone: string
+  username_changed_at?: string | null
 }
 
 function SettingsPageContent() {
@@ -28,7 +30,11 @@ function SettingsPageContent() {
   const [displayName, setDisplayName] = useState("")
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
+  const [currentUsername, setCurrentUsername] = useState("")
   const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [usernameChecking, setUsernameChecking] = useState(false)
+  const [rateLimitRemaining, setRateLimitRemaining] = useState<{ days: number; hours: number; minutes: number } | null>(null)
   const [privacy, setPrivacy] = useState<PrivacySetting>("friends")
   const [loading, setLoading] = useState(true)
   const [initialDisplayName, setInitialDisplayName] = useState<string | null>(null)
@@ -62,8 +68,29 @@ function SettingsPageContent() {
           setDisplayName(displayNameValue)
           setInitialDisplayName(user.display_name || null)
           setUsername(user.username || "")
+          setCurrentUsername(user.username || "")
           setEmail(user.email || "")
           setPrivacy(user.privacy_opt_in ? "public" : "friends")
+          
+          // Calculate rate limit remaining if username was changed recently
+          if (user.username_changed_at) {
+            const changedAt = new Date(user.username_changed_at)
+            const now = new Date()
+            const diffMs = now.getTime() - changedAt.getTime()
+            const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+            const remainingMs = thirtyDaysMs - diffMs
+            
+            if (remainingMs > 0) {
+              const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000))
+              const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+              const remainingMinutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000))
+              setRateLimitRemaining({ days: remainingDays, hours: remainingHours, minutes: remainingMinutes })
+            } else {
+              setRateLimitRemaining(null)
+            }
+          } else {
+            setRateLimitRemaining(null)
+          }
         } else if (res.status === 401) {
           // Token invalid, redirect to login
           localStorage.removeItem("access_token")
@@ -80,6 +107,59 @@ function SettingsPageContent() {
 
     fetchUser()
   }, [router])
+
+  // Check username availability when it changes (like signup page)
+  useEffect(() => {
+    const checkUsername = async () => {
+      const trimmed = username.trim().toLowerCase()
+      
+      // Don't check if it's the current username
+      if (trimmed === currentUsername.toLowerCase()) {
+        setUsernameAvailable(null)
+        setUsernameError(null)
+        return
+      }
+      
+      if (!trimmed) {
+        setUsernameAvailable(null)
+        setUsernameError(null)
+        return
+      }
+      
+      // Validate format first
+      if (trimmed.length < 3 || trimmed.length > 32) {
+        setUsernameError("Username must be between 3 and 32 characters")
+        setUsernameAvailable(false)
+        return
+      }
+      
+      if (!/^[a-z0-9_]+$/.test(trimmed)) {
+        setUsernameError("Username can only contain letters, numbers, and underscores")
+        setUsernameAvailable(false)
+        return
+      }
+      
+      setUsernameChecking(true)
+      setUsernameError(null)
+      
+      try {
+        const result = await checkUsernameAvailability(trimmed)
+        setUsernameAvailable(result.available)
+        if (!result.available && result.error) {
+          setUsernameError(result.error)
+        }
+      } catch (err: any) {
+        setUsernameError("Failed to check username availability")
+        setUsernameAvailable(false)
+      } finally {
+        setUsernameChecking(false)
+      }
+    }
+    
+    // Debounce username check
+    const timeoutId = setTimeout(checkUsername, 500)
+    return () => clearTimeout(timeoutId)
+  }, [username, currentUsername])
 
   const handleSaveDisplayName = async () => {
     const token = localStorage.getItem("access_token")
@@ -141,6 +221,17 @@ function SettingsPageContent() {
       return
     }
 
+    // Check if username is available (like signup page)
+    if (usernameAvailable === false) {
+      setUsernameError("Please choose a different username")
+      return
+    }
+
+    if (usernameChecking || usernameAvailable === null) {
+      setUsernameError("Please wait for username validation")
+      return
+    }
+
     setSavingUsername(true)
     setUsernameError(null)
     setError(null)
@@ -152,11 +243,12 @@ function SettingsPageContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username: username.trim().toLowerCase() }),
       })
 
       if (res.ok) {
         setShowUsernameSuccess(true)
+        setRateLimitRemaining(null) // Reset rate limit after successful change
         // If display_name is also set, redirect to dashboard (first-time setup complete)
         if (displayName && displayName.trim()) {
           setTimeout(() => {
@@ -166,11 +258,20 @@ function SettingsPageContent() {
         setTimeout(() => setShowUsernameSuccess(false), 2000)
         }
       } else {
-        const data = await res.json()
-        setUsernameError(data.message || "Username already taken")
+        const data = await res.json().catch(() => ({}))
+        
+        // Handle rate limit error with time remaining
+        if (res.status === 429 && data.rate_limited && data.remaining) {
+          setRateLimitRemaining(data.remaining)
+          const { days, hours, minutes } = data.remaining
+          setUsernameError(`Username can only be changed once every 30 days. Time remaining: ${days}d ${hours}h ${minutes}m`)
+        } else {
+          setUsernameError(data.error || "Failed to update username")
+        }
       }
     } catch (err) {
-      setError("Failed to connect to server")
+      // Only show connection error if it's actually a connection issue, not a rate limit
+      setError("Failed to connect to server. Please check your internet connection.")
     } finally {
       setSavingUsername(false)
     }
@@ -354,19 +455,42 @@ function SettingsPageContent() {
                 <label className="block text-sm font-medium text-gray-400 mb-2">
                   Username <span className="text-red-400">*</span>
                   <span className="text-gray-500 ml-2 font-normal">
-                    (how others find you - can change once every 60 days)
+                    (how others find you - can change once every 30 days)
                   </span>
                 </label>
-                <Input
-                  placeholder="your_username"
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
-                    setUsernameError(null)
-                  }}
-                  className="bg-gray-900/50 border-white/10 text-white placeholder:text-gray-500"
-                />
+                {rateLimitRemaining && (
+                  <div className="mb-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-sm text-yellow-400">
+                    ⏱️ Username change available in: {rateLimitRemaining.days}d {rateLimitRemaining.hours}h {rateLimitRemaining.minutes}m
+                  </div>
+                )}
+                <div className="relative">
+                  <Input
+                    placeholder="your_username"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+                      setUsernameError(null)
+                    }}
+                    className={`bg-gray-900/50 border-white/10 text-white placeholder:text-gray-500 ${
+                      usernameAvailable === true ? "border-green-500/50" : 
+                      usernameAvailable === false ? "border-red-500/50" : ""
+                    }`}
+                  />
+                  {usernameChecking && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                  {!usernameChecking && usernameAvailable === true && username.trim() && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Check className="w-4 h-4 text-green-500" />
+                    </div>
+                  )}
+                </div>
                 {usernameError && <p className="text-red-400 text-sm mt-1">{usernameError}</p>}
+                {!usernameError && usernameAvailable === true && username.trim() && (
+                  <p className="text-green-400 text-sm mt-1">✓ Username is available</p>
+                )}
                 <Button
                   onClick={handleSaveUsername}
                   disabled={savingUsername || !username.trim()}

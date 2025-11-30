@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Zap, Loader2, Check, X } from "lucide-react"
 import { signupWithGoogle, checkUsernameAvailability } from "@/lib/api"
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [displayName, setDisplayName] = useState("")
@@ -128,49 +130,26 @@ export default function SignupPage() {
       
       if (clientId && typeof window !== "undefined" && !googleEmail) {
         // Real Google OAuth - store signup data, then redirect to Google
-        sessionStorage.setItem("pending_signup", JSON.stringify({
+        const pendingSignup = JSON.stringify({
           display_name: displayName.trim(),
           username: username.trim().toLowerCase(),
-        }))
+        })
+        sessionStorage.setItem("pending_signup", pendingSignup)
         
+        // Use state parameter to pass signup flag (Google preserves this)
+        const state = "signup"
         const redirectUri = `${window.location.origin}/api/auth/google/callback`
         const scope = "openid email profile"
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=select_account`
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=select_account&state=${encodeURIComponent(state)}`
         
         console.log("Redirecting to Google OAuth for signup...")
         window.location.href = authUrl
         return
       }
 
-      // Use email from Google OAuth (if available) or generate test email
-      const email = googleEmail || `user${Date.now()}@uiuc.edu`
-      const sub = googleSub || (googleEmail ? `google-${email}` : `dev-${email}`)
-      const name = googleName || displayName.trim()
-
-      console.log("Signing up with Google:", { 
-        email, 
-        displayName: displayName.trim(),
-        username: username.trim().toLowerCase(),
-        fromGoogle: !!googleEmail
-      })
-      
-      const result = await signupWithGoogle({
-        email,
-        sub,
-        name,
-        display_name: displayName.trim(),
-        username: username.trim().toLowerCase(),
-      })
-
-      console.log("Signup result:", result)
-
-      // Redirect to dashboard after successful signup
-      if (result && result.access_token) {
-        console.log("Redirecting to dashboard...")
-        window.location.replace("/dashboard")
-      } else {
-        throw new Error("No access token received")
-      }
+      // This should never be reached if Google OAuth is configured
+      // If we get here, it means Google OAuth failed
+      throw new Error("Google OAuth is required. Please configure NEXT_PUBLIC_GOOGLE_CLIENT_ID.")
     } catch (err: any) {
       console.error("Signup error:", err)
       const errorMessage = err.message || err.toString() || "Signup failed. Check console for details."
@@ -317,5 +296,21 @@ export default function SignupPage() {
         </div>
       </Card>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Card className="w-full max-w-md p-8 bg-black border-white/10">
+          <div className="flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-white" />
+          </div>
+        </Card>
+      </div>
+    }>
+      <SignupPageContent />
+    </Suspense>
   )
 }

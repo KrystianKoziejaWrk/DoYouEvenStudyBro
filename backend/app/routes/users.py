@@ -58,13 +58,26 @@ def update_me():
         if existing and existing.id != user.id:
             return jsonify({"error": "Username already taken"}), 400
         
-        # Check 60-day restriction
+        # Check 30-day restriction
         if user.username_changed_at:
-            days_since_change = (utc_now() - user.username_changed_at).days
-            if days_since_change < 60:
+            time_since_change = utc_now() - user.username_changed_at
+            days_since_change = time_since_change.days
+            if days_since_change < 30:
+                # Calculate remaining time in days:hours:minutes
+                remaining_seconds = (30 * 24 * 60 * 60) - int(time_since_change.total_seconds())
+                remaining_days = remaining_seconds // (24 * 60 * 60)
+                remaining_hours = (remaining_seconds % (24 * 60 * 60)) // (60 * 60)
+                remaining_minutes = (remaining_seconds % (60 * 60)) // 60
+                
                 return jsonify({
-                    "error": f"Username can only be changed once every 60 days. {60 - days_since_change} days remaining."
-                }), 400
+                    "error": "Username can only be changed once every 30 days.",
+                    "rate_limited": True,
+                    "remaining": {
+                        "days": remaining_days,
+                        "hours": remaining_hours,
+                        "minutes": remaining_minutes
+                    }
+                }), 429
         
         user.username = new_username
         user.username_changed_at = utc_now()

@@ -59,26 +59,140 @@ export default function WeeklyCalendar() {
           return
         }
 
-        const schedule: DaySchedule[] = weekData.days.map((d: any, i: number) => {
-          // Filter sessions by selected subject if needed
-          let sessionsToShow = d.sessions || []
-          if (!showAllSubjects && selectedSubject) {
-            const selectedSubjectObj = subjects.find(s => String(s.id) === String(selectedSubject))
-            if (selectedSubjectObj) {
-              sessionsToShow = sessionsToShow.filter((session: any) => {
-                const sessionSubjectName = session.subject || "All Subjects"
-                return sessionSubjectName === selectedSubjectObj.name
-              })
-            }
+        // Collect all sessions from all days
+        const allSessions: any[] = []
+        weekData.days.forEach((d: any) => {
+          if (d.sessions && Array.isArray(d.sessions)) {
+            allSessions.push(...d.sessions)
+          }
+        })
+
+        // Filter by subject if needed
+        let sessionsToShow = allSessions
+        if (!showAllSubjects && selectedSubject) {
+          const selectedSubjectObj = subjects.find(s => String(s.id) === String(selectedSubject))
+          if (selectedSubjectObj) {
+            sessionsToShow = allSessions.filter((session: any) => {
+              const sessionSubjectName = session.subject || "All Subjects"
+              return sessionSubjectName === selectedSubjectObj.name
+            })
+          }
+        }
+
+        // Helper to get day of week in user's timezone (0=Sunday, 1=Monday, ..., 6=Saturday)
+        const getDayOfWeekInTimezone = (utcDate: Date): number => {
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            weekday: "long"
+          })
+          const weekday = formatter.format(utcDate)
+          const dayMap: { [key: string]: number } = {
+            "Sunday": 0,
+            "Monday": 1,
+            "Tuesday": 2,
+            "Wednesday": 3,
+            "Thursday": 4,
+            "Friday": 5,
+            "Saturday": 6
+          }
+          return dayMap[weekday] ?? 0
+        }
+
+        // Helper to get date string in user's timezone (YYYY-MM-DD)
+        const getDateInTimezone = (utcDate: Date): string => {
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          })
+          const parts = formatter.formatToParts(utcDate)
+          const year = parts.find(p => p.type === "year")?.value
+          const month = parts.find(p => p.type === "month")?.value
+          const day = parts.find(p => p.type === "day")?.value
+          return `${year}-${month}-${day}`
+        }
+
+        // Group sessions by day index (0=Mon, 1=Tue, ..., 6=Sun)
+        const sessionsByDayIndex: { [dayIndex: number]: any[] } = {}
+        for (let i = 0; i < 7; i++) {
+          sessionsByDayIndex[i] = []
+        }
+
+        // Pre-calculate all dates in the week in user's timezone
+        // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
+        const weekDatesInTimezone: string[] = []
+        for (let j = 0; j < 7; j++) {
+          const weekDate = new Date(weekStart)
+          weekDate.setUTCDate(weekStart.getUTCDate() + j)
+          weekDatesInTimezone.push(getDateInTimezone(weekDate))
+        }
+
+        console.log("📅 Week start (UTC):", weekStart.toISOString())
+        console.log("📅 Week dates in timezone:", weekDatesInTimezone)
+        console.log("📅 Total sessions to process:", sessionsToShow.length)
+
+        sessionsToShow.forEach((session: any) => {
+          let startStr = session.started_at
+          if (!startStr.includes('Z') && !startStr.includes('+') && !startStr.includes('-', 10)) {
+            startStr = startStr + 'Z'
+          }
+          
+          const startDateUTC = new Date(startStr)
+          if (isNaN(startDateUTC.getTime())) {
+            console.error("❌ Invalid date:", startStr)
+            return
           }
 
-          const blocks: FocusBlock[] = sessionsToShow.map((session: any) => {
-            // Backend returns ISO strings in UTC (e.g., "2025-11-30T01:28:50.635+00:00" or "2025-11-30T01:28:50.635Z")
-            // Parse as UTC - ensure it's treated as UTC
+          // Get the session's date in user's timezone
+          const sessionDateInTimezone = getDateInTimezone(startDateUTC)
+          const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+          }).format(startDateUTC)
+          
+          // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
+          const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
+          // Convert to day index (0=Mon, 1=Tue, ..., 6=Sun)
+          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
+          
+          console.log(`🔍 Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][sessionDayOfWeek]}), DayIndex=${dayIndex} (${days[dayIndex]})`)
+          
+          // Verify the session's date is within the week range
+          // This ensures we don't show sessions from previous/next week
+          const sessionDateMatches = weekDatesInTimezone.includes(sessionDateInTimezone)
+          
+          if (!sessionDateMatches) {
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week dates: ${weekDatesInTimezone.join(', ')}`)
+            // For now, include it anyway if it's the current week's day of week
+            // This handles edge cases where timezone boundaries cause date mismatches
+            console.log(`✅ Including session anyway based on day of week`)
+          }
+          
+          console.log(`✅ Session: ${sessionDateInTimezone} ${sessionTimeInTimezone} -> day index ${dayIndex} (${days[dayIndex]})`)
+          
+          sessionsByDayIndex[dayIndex].push(session)
+          console.log(`✅ Session on ${sessionDateInTimezone} -> day index ${dayIndex} (${days[dayIndex]})`)
+        })
+
+        console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => `${i}(${days[Number(i)]}): ${sessionsByDayIndex[Number(i)].length}`).join(", "))
+
+        // Create schedule for the week (Monday to Sunday)
+        const schedule: DaySchedule[] = []
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(weekStart)
+          date.setUTCDate(weekStart.getUTCDate() + i)
+          
+          // Get sessions for this day index
+          const daySessions = sessionsByDayIndex[i] || []
+
+          // Process sessions for this day
+          const blocks: FocusBlock[] = daySessions.map((session: any) => {
             let startStr = session.started_at
             let endStr = session.ended_at
             
-            // If the string doesn't have timezone info, assume it's UTC and add 'Z'
             if (!startStr.includes('Z') && !startStr.includes('+') && !startStr.includes('-', 10)) {
               startStr = startStr + 'Z'
             }
@@ -86,26 +200,14 @@ export default function WeeklyCalendar() {
               endStr = endStr + 'Z'
             }
             
-            // Create Date objects - these will be in UTC internally
             const startDateUTC = new Date(startStr)
             const endDateUTC = new Date(endStr)
             
-            // Verify UTC parsing
             if (isNaN(startDateUTC.getTime()) || isNaN(endDateUTC.getTime())) {
-              console.error("❌ Invalid date:", { startStr, endStr })
               return null
             }
             
-            // Convert UTC to selected timezone using Intl API
-            // This is the correct way to convert UTC to a specific timezone
-            const formatter = new Intl.DateTimeFormat("en-US", {
-              timeZone: timezone,
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false
-            })
-            
-            // Get time parts in the selected timezone (including seconds)
+            // Get time parts in the selected timezone
             const formatterWithSeconds = new Intl.DateTimeFormat("en-US", {
               timeZone: timezone,
               hour: "2-digit",
@@ -117,7 +219,6 @@ export default function WeeklyCalendar() {
             const startParts = formatterWithSeconds.formatToParts(startDateUTC)
             const endParts = formatterWithSeconds.formatToParts(endDateUTC)
             
-            // Extract hour, minute, and second
             const startHour = parseInt(startParts.find(p => p.type === "hour")?.value || "0", 10)
             const startMin = parseInt(startParts.find(p => p.type === "minute")?.value || "0", 10)
             const startSec = parseInt(startParts.find(p => p.type === "second")?.value || "0", 10)
@@ -125,26 +226,16 @@ export default function WeeklyCalendar() {
             const endMin = parseInt(endParts.find(p => p.type === "minute")?.value || "0", 10)
             const endSec = parseInt(endParts.find(p => p.type === "second")?.value || "0", 10)
             
-            // Debug logging
-            console.log(`🕐 Session time conversion:`, {
-              utc: startDateUTC.toISOString(),
-              timezone,
-              local: `${startHour}:${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')}`
-            })
-            
             const startHourDecimal = startHour + startMin / 60 + startSec / 3600
-            const endHourDecimal = endHour + endMin / 60 + endSec / 3600
             const durationHours = session.durationMinutes / 60
 
-            // Find subject color from store
             const subjectName = session.subject || "All Subjects"
             const subjectColor = subjectMap.get(subjectName)?.color || "#f59f0a"
 
-            // Format times for tooltip (HH:MM:SS format)
             const startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')}`
             const endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:${endSec.toString().padStart(2, '0')}`
 
-            return {
+          return {
               startHour: startHourDecimal,
               duration: durationHours,
               subject: subjectName,
@@ -154,19 +245,24 @@ export default function WeeklyCalendar() {
             }
           }).filter(block => block !== null) as FocusBlock[]
 
-          // Calculate total minutes for filtered sessions
           const totalMinutes = blocks.reduce((sum, block) => sum + (block.duration * 60), 0)
+          
+          // Format date directly from UTC date in user's timezone (add 1 day to fix off-by-one)
+          const displayDate = new Date(date)
+          displayDate.setUTCDate(date.getUTCDate() + 1)
+          const formattedDate = displayDate.toLocaleDateString("en-US", {
+            timeZone: timezone,
+            month: "short",
+            day: "numeric"
+          })
 
-          // Parse date - backend returns ISO date string (YYYY-MM-DD)
-          const dateObj = new Date(d.date + "T00:00:00Z")
-
-          return {
-            day: days[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1],
-            date: dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          schedule.push({
+            day: days[i],
+            date: formattedDate,
             totalMinutes: Math.round(totalMinutes),
             blocks,
+          })
           }
-        })
 
         console.log("📊 Processed schedule:", schedule)
         setData(schedule)
@@ -200,13 +296,13 @@ export default function WeeklyCalendar() {
 
   const previousWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() - 7)
+    d.setUTCDate(d.getUTCDate() - 7)
     setWeekStart(d)
   }
 
   const nextWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() + 7)
+    d.setUTCDate(d.getUTCDate() + 7)
     setWeekStart(d)
   }
 
@@ -235,11 +331,13 @@ export default function WeeklyCalendar() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm text-gray-400 w-32 text-center">
-              {weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} -{" "}
-              {new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+              {(() => {
+                const startDate = new Date(weekStart)
+                startDate.setUTCDate(weekStart.getUTCDate() + 1) // Add 1 day to fix off-by-one
+                const endDate = new Date(weekStart)
+                endDate.setUTCDate(weekStart.getUTCDate() + 7) // Add 7 days (6+1) to fix off-by-one
+                return `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })}`
+              })()}
             </span>
             <Button variant="ghost" size="sm" onClick={nextWeek} className="text-white hover:bg-white/10">
               <ChevronRight className="h-4 w-4" />
@@ -293,13 +391,15 @@ export default function WeeklyCalendar() {
               // Show empty week days
               Array.from({ length: 7 }).map((_, i) => {
                 const date = new Date(weekStart)
-                date.setDate(date.getDate() + i)
-                const dayName = days[date.getDay() === 0 ? 6 : date.getDay() - 1]
+                date.setUTCDate(weekStart.getUTCDate() + i)
+                const utcDay = date.getUTCDay()
+                const dayIndex = utcDay === 0 ? 6 : utcDay - 1
+                const dayName = days[dayIndex]
                 return (
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
                     <p className="text-xs text-gray-400">
-                      {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
                     </p>
                     <p className="text-xs text-white mt-1">0h 0m</p>
                   </div>
@@ -354,7 +454,7 @@ export default function WeeklyCalendar() {
                             >
                               {finalHeightPx >= 20 && (
                                 <>
-                                  <div className="truncate">{block.subject}</div>
+                              <div className="truncate">{block.subject}</div>
                                   <div className="text-white/70">{block.duration.toFixed(2)}h</div>
                                 </>
                               )}
@@ -366,7 +466,7 @@ export default function WeeklyCalendar() {
                               {block.startTime} - {block.endTime}
                             </p>
                             <p className="text-xs text-gray-400">
-                              Duration: {Math.floor(block.duration * 60)}m {Math.floor((block.duration * 60 % 1) * 60)}s
+                              Duration: {minutesToHhMm(Math.round(block.duration * 60))}
                             </p>
                           </TooltipContent>
                         </Tooltip>

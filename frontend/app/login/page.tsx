@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Zap, Loader2 } from "lucide-react"
 import { loginWithGoogle, getCurrentUser } from "@/lib/api"
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -79,27 +79,8 @@ export default function LoginPage() {
         return
       }
       
-      console.log("❌ No Google Client ID found, using dev stub")
-
-      // Fallback: Dev stub (for testing without Google OAuth)
-      const testEmail = "test@uiuc.edu"
-      console.log("Logging in with Google (dev stub):", { email: testEmail })
-      
-      const result = await loginWithGoogle({
-        email: testEmail,
-        sub: `dev-${testEmail}`,
-      })
-
-      console.log("Login result:", result)
-
-      if (result && result.access_token) {
-        console.log("Login successful! Token saved. Redirecting to dashboard...")
-        setTimeout(() => {
-          window.location.replace("/dashboard")
-        }, 200)
-      } else {
-        throw new Error("No access token received")
-      }
+      // No Google Client ID - show error
+      throw new Error("Google OAuth is not configured. Please contact support.")
     } catch (err: any) {
       console.error("Login error:", err)
       const errorMessage = err.message || err.toString() || "Login failed. Check console for details."
@@ -184,5 +165,21 @@ export default function LoginPage() {
         </div>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Card className="w-full max-w-md p-8 bg-black border-white/10">
+          <div className="flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-white" />
+          </div>
+        </Card>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   )
 }

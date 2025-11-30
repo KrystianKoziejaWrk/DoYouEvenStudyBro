@@ -48,7 +48,8 @@ class User(db.Model):
             "username": self.username,
             "email_domain": self.email_domain,
             "privacy_opt_in": self.privacy_opt_in,
-            "timezone": self.timezone
+            "timezone": self.timezone,
+            "username_changed_at": self.username_changed_at.isoformat() if self.username_changed_at else None
         }
 
 class Subject(db.Model):

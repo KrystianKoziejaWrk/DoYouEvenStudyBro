@@ -26,10 +26,29 @@ export function formatDateLong(date: string | Date): string {
 }
 
 export function getMonday(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  return new Date(d.setDate(diff))
+  // Calculate Monday in UTC to match backend behavior
+  // Convert date to UTC
+  const utcDate = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  ))
+  
+  // Get day of week in UTC (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  const day = utcDate.getUTCDay()
+  
+  // Calculate days to subtract to get to Monday
+  // If Sunday (0), subtract 6 days; otherwise subtract (day - 1) days
+  const diff = day === 0 ? -6 : 1 - day
+  
+  // Create new date with the adjustment
+  const mondayUTC = new Date(utcDate)
+  mondayUTC.setUTCDate(utcDate.getUTCDate() + diff)
+  
+  // Set time to midnight UTC
+  mondayUTC.setUTCHours(0, 0, 0, 0)
+  
+  return mondayUTC
 }
 
 export function calculateXP(totalMinutes: number): number {

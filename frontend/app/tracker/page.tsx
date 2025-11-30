@@ -84,8 +84,10 @@ function TrackerPageContent() {
       // Prefer "All Subjects" if it exists, otherwise use first subject
       const allSubjectsOption = subjects.find((s) => s.name === "All Subjects")
       const subjectToSelect = allSubjectsOption || subjects[0]
-      setSelectedSubject(subjectToSelect.name)
-      setSelectedSubjectId(Number(subjectToSelect.id))
+      if (subjectToSelect) {
+        setSelectedSubject(subjectToSelect.name)
+        setSelectedSubjectId(Number(subjectToSelect.id))
+      }
     }
   }, [subjects, selectedSubject, isHydrated])
 
@@ -97,6 +99,31 @@ function TrackerPageContent() {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
         const session: StoredSession = JSON.parse(stored)
+        
+        // Validate that the stored subject_id still exists in current subjects
+        let validSubjectId = session.selectedSubjectId
+        let validSubjectName = session.selectedSubject || ""
+        
+        if (session.selectedSubjectId && subjects.length > 0) {
+          const subjectExists = subjects.find(s => Number(s.id) === session.selectedSubjectId)
+          if (!subjectExists) {
+            // Subject doesn't exist anymore (database was reset), default to "All Subjects"
+            console.warn(`⚠️ Stored subject_id ${session.selectedSubjectId} not found, defaulting to "All Subjects"`)
+            const allSubjectsOption = subjects.find((s) => s.name === "All Subjects")
+            if (allSubjectsOption) {
+              validSubjectId = Number(allSubjectsOption.id)
+              validSubjectName = allSubjectsOption.name
+            } else if (subjects.length > 0) {
+              // Fallback to first subject if "All Subjects" doesn't exist
+              validSubjectId = Number(subjects[0].id)
+              validSubjectName = subjects[0].name
+            } else {
+              validSubjectId = null
+              validSubjectName = ""
+            }
+          }
+        }
+        
         if (session.isRunning && session.startTimestamp) {
           // Check if session is still valid (not older than 24 hours)
           const now = Date.now()
@@ -106,8 +133,8 @@ function TrackerPageContent() {
           if (sessionAge < maxAge) {
             // Restore subject selection but DON'T auto-start timer
             // User must manually click to resume
-            setSelectedSubject(session.selectedSubject || "")
-            setSelectedSubjectId(session.selectedSubjectId)
+            setSelectedSubject(validSubjectName)
+            setSelectedSubjectId(validSubjectId)
             
             // Show elapsed time but don't start counting
             setDisplayMilliseconds(sessionAge)
@@ -115,13 +142,13 @@ function TrackerPageContent() {
             // Keep isRunning as false - user must click to resume
           } else {
             // Session too old, save it and clear
-            if (session.startTimestamp) {
+            if (session.startTimestamp && validSubjectId) {
               // Auto-save old session before clearing
               const oldDuration = now - session.startTimestamp
-              if (oldDuration >= 1000 && session.selectedSubjectId) {
+              if (oldDuration >= 1000) {
                 // Save in background (don't await)
                 createSession({
-                  subject_id: session.selectedSubjectId,
+                  subject_id: validSubjectId,
                   duration_ms: oldDuration,
                   started_at: new Date(session.startTimestamp).toISOString(),
                   ended_at: new Date(now).toISOString(),
@@ -130,6 +157,10 @@ function TrackerPageContent() {
             }
             localStorage.removeItem(STORAGE_KEY)
           }
+        } else {
+          // Not running, just restore subject selection (if valid)
+          setSelectedSubject(validSubjectName)
+          setSelectedSubjectId(validSubjectId)
         }
       }
     } catch (err) {
@@ -137,7 +168,7 @@ function TrackerPageContent() {
       localStorage.removeItem(STORAGE_KEY)
     }
     setIsHydrated(true)
-  }, [])
+  }, [subjects]) // Add subjects as dependency to re-validate when subjects load
 
   // Calculate elapsed time from timestamp (works even when tab is inactive)
   const calculateElapsed = (start: number | null): number => {

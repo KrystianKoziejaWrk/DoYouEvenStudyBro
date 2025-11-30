@@ -18,48 +18,38 @@ export default function WeeklyBars() {
     const today = new Date()
     return getMonday(today)
   })
-  const { selectedSubject, showAllSubjects, subjects } = useFilterStore()
+  const { selectedSubject, showAllSubjects, subjects, timezone } = useFilterStore()
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       try {
-        const weekData = await fetchWeekly(weekStart.toISOString().split("T")[0], "America/Chicago")
+        const weekData = await fetchWeekly(weekStart.toISOString().split("T")[0], timezone)
         setData(weekData)
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [weekStart])
+  }, [weekStart, timezone])
 
   const previousWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() - 7)
+    d.setUTCDate(weekStart.getUTCDate() - 7)
     setWeekStart(d)
   }
 
   const nextWeek = () => {
     const d = new Date(weekStart)
-    d.setDate(d.getDate() + 7)
+    d.setUTCDate(weekStart.getUTCDate() + 7)
     setWeekStart(d)
   }
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-  const subjectMap = new Map(subjects.slice(1).map((s) => [s.name, s]))
+  // Include all subjects, including "All Subjects"
+  const subjectMap = new Map(subjects.map((s) => [s.name, s]))
   const subjectNames = Array.from(subjectMap.keys())
-
-  const chartData = data.map((d, i) => {
-    const dayData: any = {
-      day: days[i],
-      total: d.minutes,
-    }
-    subjectNames.forEach((subject) => {
-      dayData[subject] = d.bySubject?.[subject] || 0
-    })
-    return dayData
-  })
 
   if (loading) {
     return (
@@ -72,9 +62,39 @@ export default function WeeklyBars() {
     )
   }
 
-  const selectedColor = selectedSubject
-    ? subjectMap.get(Array.from(subjectMap.keys()).find((k) => subjectMap.get(k)?.id === selectedSubject) || "")
-    : undefined
+  // Get the selected subject object (including "All Subjects")
+  const selectedSubjectObj = selectedSubject
+    ? Array.from(subjectMap.values()).find((s) => s.id === selectedSubject)
+    : subjectMap.get("All Subjects") // Default to "All Subjects" if nothing selected
+  
+  // Get color - use selected subject color, or "All Subjects" color, or default blue
+  const barColor = selectedSubjectObj?.color || subjectMap.get("All Subjects")?.color || "#3b82f6"
+
+  // Calculate week dates in user's timezone for display
+  const weekDatesInTimezone: string[] = []
+  for (let j = 0; j < 7; j++) {
+    const weekDate = new Date(weekStart)
+    weekDate.setUTCDate(weekStart.getUTCDate() + j)
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      month: "short",
+      day: "numeric"
+    })
+    weekDatesInTimezone.push(formatter.format(weekDate))
+  }
+
+  // Map chart data with correct dates
+  const chartDataWithDates = data.map((d, i) => {
+    const dayData: any = {
+      day: days[i],
+      date: weekDatesInTimezone[i] || days[i], // Use timezone date for display
+      total: d.minutes,
+    }
+    subjectNames.forEach((subject) => {
+      dayData[subject] = d.bySubject?.[subject] || 0
+    })
+    return dayData
+  })
 
   return (
     <Card className="p-6">
@@ -84,8 +104,8 @@ export default function WeeklyBars() {
           <Button variant="ghost" size="sm" onClick={previousWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-muted-foreground w-24 text-center">
-            {weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          <span className="text-xs text-muted-foreground w-32 text-center">
+            {weekDatesInTimezone[0]} - {weekDatesInTimezone[6]}
           </span>
           <Button variant="ghost" size="sm" onClick={nextWeek}>
             <ChevronRight className="h-4 w-4" />
@@ -95,23 +115,39 @@ export default function WeeklyBars() {
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
+          <BarChart data={chartDataWithDates}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="day" />
             <YAxis />
-            <Tooltip formatter={(value) => minutesToHhMm(value as number)} labelFormatter={() => "Daily total"} />
+            <Tooltip 
+              formatter={(value) => minutesToHhMm(value as number)} 
+              labelFormatter={(label, payload) => {
+                if (payload && payload[0]) {
+                  return payload[0].payload.date || label
+                }
+                return label
+              }}
+            />
             {showAllSubjects ? (
-              subjectNames.map((subject) => (
-                <Bar key={subject} dataKey={subject} stackId="a" fill={subjectMap.get(subject)?.color || "#3b82f6"} />
-              ))
+              subjectNames.map((subject) => {
+                const subjectObj = subjectMap.get(subject)
+                return (
+                  <Bar 
+                    key={subject} 
+                    dataKey={subject} 
+                    stackId="a" 
+                    fill={subjectObj?.color || "#3b82f6"} 
+                  />
+                )
+              })
             ) : (
               <Bar
                 dataKey={
                   selectedSubject
-                    ? Array.from(subjectMap.values()).find((s) => s.id === selectedSubject)?.name || "minutes"
+                    ? selectedSubjectObj?.name || "total"
                     : "total"
                 }
-                fill={selectedColor?.color || "#3b82f6"}
+                fill={barColor}
               />
             )}
           </BarChart>

@@ -1,5 +1,7 @@
 // API client for backend communication
-const API_BASE = "http://127.0.0.1:5001/api"
+import type { DailyStats } from "./types"
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/api"
 
 // Get access token from localStorage (browser-safe)
 export function getAccessToken(): string | null {
@@ -68,6 +70,7 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
 // Auth API
 export async function checkUsernameAvailability(username: string) {
   try {
+    console.log(`🔍 Checking username availability: ${username}, API_BASE: ${API_BASE}`)
     const response = await fetch(`${API_BASE}/auth/check-username?username=${encodeURIComponent(username)}`, {
       method: "GET",
       headers: {
@@ -75,11 +78,22 @@ export async function checkUsernameAvailability(username: string) {
       },
     })
 
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Request failed" }))
+      console.error(`❌ Username check failed (${response.status}):`, error)
+      return { available: false, error: error.error || error.message || "Failed to check username" }
+    }
+
     const result = await response.json()
+    console.log(`✅ Username check result:`, result)
     return result
-  } catch (err) {
+  } catch (err: any) {
     console.error("checkUsernameAvailability error:", err)
-    throw err
+    // Return a result object instead of throwing
+    return { 
+      available: false, 
+      error: err.message || "Network error. Please check your connection." 
+    }
   }
 }
 
@@ -300,6 +314,51 @@ export async function getStatsWeekly(params?: { username?: string; start_date?: 
   
   const queryString = query.toString()
   return apiFetch(`/stats/weekly${queryString ? `?${queryString}` : ""}`)
+}
+
+// Helper function to fetch weekly data and transform it to DailyStats format
+export async function fetchWeekly(startDate: string, timezone: string): Promise<DailyStats[]> {
+  // Calculate end date (7 days from start)
+  const start = new Date(startDate + "T00:00:00Z")
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 6)
+  
+  const weekData = await getStatsWeekly({ start_date: startDate })
+  
+  // Transform weekly data to DailyStats format
+  if (weekData && weekData.days && Array.isArray(weekData.days)) {
+    return weekData.days.map((day: any) => {
+      const bySubject: Record<string, number> = {}
+      
+      // Process sessions to group by subject
+      if (day.sessions && Array.isArray(day.sessions)) {
+        day.sessions.forEach((session: any) => {
+          const subjectName = session.subject || "All Subjects"
+          const minutes = session.durationMinutes || 0
+          bySubject[subjectName] = (bySubject[subjectName] || 0) + minutes
+        })
+      }
+      
+      return {
+        date: day.date,
+        minutes: day.totalMinutes || 0,
+        bySubject
+      }
+    })
+  }
+  
+  // Fallback: return empty array with 7 days
+  const days: DailyStats[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start)
+    date.setUTCDate(start.getUTCDate() + i)
+    days.push({
+      date: date.toISOString().split("T")[0],
+      minutes: 0,
+      bySubject: {}
+    })
+  }
+  return days
 }
 
 export async function getStatsHeatmap(params?: { username?: string; start_date?: string; end_date?: string }) {
