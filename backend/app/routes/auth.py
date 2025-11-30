@@ -197,15 +197,26 @@ def login():
 def google_oauth_callback():
     """
     OAuth callback handler - exchanges authorization code for user info.
+    Can handle both login (existing user) and signup (new user with pending_signup data).
     """
     code = request.args.get("code")
     error = request.args.get("error")
+    pending_signup_json = request.args.get("pending_signup")
     
     if error:
         return jsonify({"error": error}), 400
     
     if not code:
         return jsonify({"error": "No authorization code provided"}), 400
+    
+    # Parse pending signup data if provided (from signup page)
+    pending_signup = None
+    if pending_signup_json:
+        try:
+            import json
+            pending_signup = json.loads(pending_signup_json)
+        except:
+            print(f"⚠️ Failed to parse pending_signup: {pending_signup_json}")
     
     try:
         import requests
@@ -275,13 +286,85 @@ def google_oauth_callback():
             user = User.query.filter_by(google_sub=google_sub).first()
         
         if not user:
-            # User doesn't exist - they need to signup first
-            return jsonify({
-                "error": "Account not found. Please sign up first.",
-                "email": email,
-                "name": name,
-                "google_sub": google_sub
-            }), 404
+            # User doesn't exist - check if we have pending signup data
+            if pending_signup:
+                # Create new user with provided username and display_name
+                display_name = pending_signup.get("display_name", "").strip()
+                username = pending_signup.get("username", "").strip().lower()
+                
+                if not display_name or not username:
+                    return jsonify({
+                        "error": "Display name and username are required for signup.",
+                        "email": email,
+                        "name": name,
+                        "google_sub": google_sub
+                    }), 400
+                
+                # Validate username format
+                if len(username) < 3 or len(username) > 32:
+                    return jsonify({
+                        "error": "Username must be between 3 and 32 characters",
+                        "email": email
+                    }), 400
+                
+                if not username.replace("_", "").isalnum():
+                    return jsonify({
+                        "error": "Username can only contain letters, numbers, and underscores",
+                        "email": email
+                    }), 400
+                
+                # Check if username is taken
+                existing_username = User.query.filter_by(username=username).first()
+                if existing_username:
+                    return jsonify({
+                        "error": "Username already taken",
+                        "email": email
+                    }), 400
+                
+                # Parse email domain
+                email_domain = email.split("@")[1].lower() if "@" in email else ""
+                if not email_domain:
+                    return jsonify({"error": "Invalid email format"}), 400
+                
+                # Create new user
+                user = User(
+                    email=email,
+                    email_domain=email_domain,
+                    google_sub=google_sub,
+                    display_name=display_name,
+                    username=username,
+                    created_at=utc_now()
+                )
+                
+                try:
+                    db.session.add(user)
+                    db.session.flush()  # Flush to get user.id
+                    
+                    # Create default "All Subjects" subject for new user
+                    from app.models import Subject
+                    default_subject = Subject(
+                        user_id=user.id,
+                        name="All Subjects",
+                        color="#f59f0a",  # Orange color
+                        created_at=utc_now()
+                    )
+                    db.session.add(default_subject)
+                    db.session.commit()
+                    print(f"✅ Created new user: {user.id} ({user.email}) with username: {user.username}")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Signup exception: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
+            else:
+                # No pending signup data - user needs to signup first
+                return jsonify({
+                    "error": "Account not found. Please sign up first.",
+                    "email": email,
+                    "name": name,
+                    "google_sub": google_sub
+                }), 404
         
         # Update google_sub if missing
         if google_sub and not user.google_sub:
