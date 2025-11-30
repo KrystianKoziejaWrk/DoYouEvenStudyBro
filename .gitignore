@@ -1,0 +1,106 @@
+# Environment variables (NEVER COMMIT THESE!)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+frontend/.env
+
+# Setup files that might contain secrets
+SETUP_ENV.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/env/
+backend/ENV/
+backend/.venv
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/instance/
+*.db-journal
+
+# Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.next/
+frontend/.turbo/
+frontend/.vercel/
+frontend/.swc/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Secrets and keys
+*.pem
+*.key
+*.key
+secrets/
+.secrets
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Logs
+logs/
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Flask
+instance/
+.webassets-cache
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# Misc
+*.orig
+.cache/
+
