@@ -77,10 +77,10 @@ def signup():
     if existing_username:
         return jsonify({"error": "Username already taken"}), 400
     
-    # Parse email domain
-    email_domain = email.split("@")[1].lower() if "@" in email else ""
-    if not email_domain:
+    # Parse email domain - just the part after @
+    if "@" not in email:
         return jsonify({"error": "Invalid email format"}), 400
+    email_domain = email.split("@")[1].lower()
     
     # Create new user
     user = User(
@@ -321,10 +321,10 @@ def google_oauth_callback():
                         "email": email
                     }), 400
                 
-                # Parse email domain
-                email_domain = email.split("@")[1].lower() if "@" in email else ""
-                if not email_domain:
+                # Parse email domain - just the part after @
+                if "@" not in email:
                     return jsonify({"error": "Invalid email format"}), 400
+                email_domain = email.split("@")[1].lower()
                 
                 # Create new user
                 user = User(
