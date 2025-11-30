@@ -11,8 +11,11 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
     if DATABASE_URL:
         # Heroku uses postgres:// but SQLAlchemy needs postgresql://
+        # For psycopg3, use postgresql+psycopg:// instead
         if DATABASE_URL.startswith("postgres://"):
-            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+        elif DATABASE_URL.startswith("postgresql://"):
+            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
         SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///focus.db")
