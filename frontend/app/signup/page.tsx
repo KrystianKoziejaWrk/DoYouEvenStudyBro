@@ -146,12 +146,17 @@ function SignupPageContent() {
     try {
       // If we already have Google email (from OAuth redirect), just complete signup
       // Otherwise, if Google OAuth is configured, redirect to Google first
-      // Use same fallback strategy as login page for reliability
+      // Use same fallback strategy as login page for reliability (always available)
       const clientId =
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
         "803284551348-u7jt1888te4a2vp2jhuq4p8rvcvg5302.apps.googleusercontent.com"
       
-      if (clientId && typeof window !== "undefined" && !googleEmail) {
+      console.log("🔍 Google Signup Debug:")
+      console.log("- Client ID from env:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND (using fallback)")
+      console.log("- Using Client ID:", clientId ? "Found" : "ERROR")
+      
+      // Always redirect if we have a client ID (which we always do with fallback)
+      if (typeof window !== "undefined" && clientId && !googleEmail) {
         // Real Google OAuth - store signup data, then redirect to Google
         const pendingSignup = JSON.stringify({
           display_name: displayName.trim(),
@@ -165,14 +170,14 @@ function SignupPageContent() {
         const scope = "openid email profile"
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=select_account&state=${encodeURIComponent(state)}`
         
-        console.log("Redirecting to Google OAuth for signup...")
+        console.log("🚀 Redirecting to Google OAuth for signup...")
+        console.log("- Redirect URI:", redirectUri)
         window.location.href = authUrl
         return
       }
 
-      // This should never be reached if Google OAuth is configured
-      // If we get here, it means Google OAuth failed
-      throw new Error("Google OAuth is required. Please configure NEXT_PUBLIC_GOOGLE_CLIENT_ID.")
+      // This should never happen with fallback, but just in case
+      throw new Error("Unable to initialize Google OAuth. Please refresh the page and try again.")
     } catch (err: any) {
       console.error("Signup error:", err)
       const errorMessage = err.message || err.toString() || "Signup failed. Check console for details."
