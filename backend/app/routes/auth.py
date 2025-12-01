@@ -153,7 +153,7 @@ def login():
     credential = data.get("credential")
     if credential:
         try:
-            from google.auth import id_token
+            from google.oauth2 import id_token
             from google.auth.transport import requests
             import os
             
