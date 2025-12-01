@@ -503,11 +503,11 @@ def google_login_post():
         
         from datetime import timedelta
         access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=7))
-    
-    return jsonify({
-        "access_token": access_token,
-        "user": user.to_dict()
-    }), 200
+        
+        return jsonify({
+            "access_token": access_token,
+            "user": user.to_dict()
+        }), 200
     else:
         # User doesn't exist - they need to signup
         return jsonify({"error": "Account not found. Please sign up first."}), 404
