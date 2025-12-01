@@ -407,7 +407,11 @@ export default function WeeklyCalendar() {
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
                     <p className="text-xs text-gray-400">
-                      {date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })}
+                      {weekDatesInTimezone[i] ? (() => {
+                        const [y, m, d] = weekDatesInTimezone[i].split('-').map(Number)
+                        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        return `${monthNames[m - 1]} ${d}`
+                      })() : ""}
                     </p>
                     <p className="text-xs text-white mt-1">0h 0m</p>
                   </div>
