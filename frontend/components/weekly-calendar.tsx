@@ -254,11 +254,13 @@ export default function WeeklyCalendar() {
 
           const totalMinutes = blocks.reduce((sum, block) => sum + (block.duration * 60), 0)
           
-          // Format date from the pre-calculated date string for this column
+          // Format date directly from the date string (YYYY-MM-DD) for this column
+          // Parse the date string and format it
           const [year, month, day] = dateForColumn.split('-').map(Number)
-          const dateObj = new Date(Date.UTC(year, month - 1, day))
-          const formattedDate = dateObj.toLocaleDateString("en-US", {
-            timeZone: timezone,
+          // Create a date in the user's timezone at noon to avoid timezone shift issues
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          const dateInTimezone = new Date(`${dateStr}T12:00:00`)
+          const formattedDate = dateInTimezone.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric"
           })
