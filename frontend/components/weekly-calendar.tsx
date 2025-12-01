@@ -249,10 +249,8 @@ export default function WeeklyCalendar() {
 
           const totalMinutes = blocks.reduce((sum, block) => sum + (block.duration * 60), 0)
           
-          // Format date directly from UTC date in user's timezone (add 1 day to fix off-by-one)
-          const displayDate = new Date(date)
-          displayDate.setUTCDate(date.getUTCDate() + 1)
-          const formattedDate = displayDate.toLocaleDateString("en-US", {
+          // Format date directly from UTC date in user's timezone
+          const formattedDate = date.toLocaleDateString("en-US", {
             timeZone: timezone,
             month: "short",
             day: "numeric"
@@ -335,9 +333,8 @@ export default function WeeklyCalendar() {
             <span className="text-sm text-gray-400 w-32 text-center">
               {(() => {
                 const startDate = new Date(weekStart)
-                startDate.setUTCDate(weekStart.getUTCDate() + 1) // Add 1 day to fix off-by-one
                 const endDate = new Date(weekStart)
-                endDate.setUTCDate(weekStart.getUTCDate() + 7) // Add 7 days (6+1) to fix off-by-one
+                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Add 6 days to get Sunday
                 return `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })}`
               })()}
             </span>
@@ -401,7 +398,7 @@ export default function WeeklyCalendar() {
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
                     <p className="text-xs text-gray-400">
-                      {date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                      {date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })}
                     </p>
                     <p className="text-xs text-white mt-1">0h 0m</p>
                   </div>
