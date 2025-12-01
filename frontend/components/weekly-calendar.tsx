@@ -164,39 +164,14 @@ export default function WeeklyCalendar() {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
-        // Start from Monday in user's timezone
-        const todayInTimezone = new Date()
-        const formatterToday = new Intl.DateTimeFormat("en-US", {
-          timeZone: timezone,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          weekday: "long"
-        })
-        const todayParts = formatterToday.formatToParts(todayInTimezone)
-        const todayYear = parseInt(todayParts.find(p => p.type === "year")?.value || "0")
-        const todayMonth = parseInt(todayParts.find(p => p.type === "month")?.value || "0") - 1
-        const todayDay = parseInt(todayParts.find(p => p.type === "day")?.value || "0")
-        const todayWeekday = todayParts.find(p => p.type === "weekday")?.value || "Monday"
-        
-        const dayMap: { [key: string]: number } = {
-          "Sunday": 6, "Monday": 0, "Tuesday": 1, "Wednesday": 2,
-          "Thursday": 3, "Friday": 4, "Saturday": 5
-        }
-        const daysToMonday = dayMap[todayWeekday] || 0
-        
-        // Calculate Monday of current week in user's timezone
-        const mondayInTimezone = new Date(todayYear, todayMonth, todayDay, 12, 0, 0)
-        mondayInTimezone.setDate(mondayInTimezone.getDate() - daysToMonday)
-        
+        // weekStart is Monday 00:00 UTC, convert to user's timezone and build week dates
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
-          const weekDate = new Date(mondayInTimezone)
-          weekDate.setDate(mondayInTimezone.getDate() + j)
-          const year = weekDate.getFullYear()
-          const month = String(weekDate.getMonth() + 1).padStart(2, '0')
-          const day = String(weekDate.getDate()).padStart(2, '0')
-          weekDatesInTimezone.push(`${year}-${month}-${day}`)
+          // Add j days to weekStart (Monday UTC)
+          const utcDate = new Date(weekStart)
+          utcDate.setUTCDate(weekStart.getUTCDate() + j)
+          // Get this date in user's timezone
+          weekDatesInTimezone.push(getDateInTimezone(utcDate))
         }
 
         console.log("📅 Week start (UTC):", weekStart.toISOString())
