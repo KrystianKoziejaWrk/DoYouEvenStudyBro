@@ -184,8 +184,13 @@ export default function WeeklyCalendar() {
         // Create schedule for the week (Monday to Sunday)
         const schedule: DaySchedule[] = []
         for (let i = 0; i < 7; i++) {
-          const date = new Date(weekStart)
-          date.setUTCDate(weekStart.getUTCDate() + i)
+          // Calculate the date for this day column in user's timezone
+          // weekStart is Monday 00:00 UTC, so we need to get the actual date in user's timezone
+          const utcDate = new Date(weekStart)
+          utcDate.setUTCDate(weekStart.getUTCDate() + i)
+          
+          // Get the date string in user's timezone for this column
+          const dateForColumn = weekDatesInTimezone[i]
           
           // Get sessions for this day index
           const daySessions = sessionsByDayIndex[i] || []
@@ -249,8 +254,10 @@ export default function WeeklyCalendar() {
 
           const totalMinutes = blocks.reduce((sum, block) => sum + (block.duration * 60), 0)
           
-          // Format date directly from UTC date in user's timezone
-          const formattedDate = date.toLocaleDateString("en-US", {
+          // Format date from the pre-calculated date string for this column
+          const [year, month, day] = dateForColumn.split('-').map(Number)
+          const dateObj = new Date(Date.UTC(year, month - 1, day))
+          const formattedDate = dateObj.toLocaleDateString("en-US", {
             timeZone: timezone,
             month: "short",
             day: "numeric"
