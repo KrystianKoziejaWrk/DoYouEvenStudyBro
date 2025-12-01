@@ -45,7 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:5001/api/users/me", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/api"
+      const res = await fetch(`${apiBase}/users/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
