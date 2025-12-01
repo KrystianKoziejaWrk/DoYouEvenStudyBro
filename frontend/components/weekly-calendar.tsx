@@ -153,28 +153,30 @@ export default function WeeklyCalendar() {
             hour12: false
           }).format(startDateUTC)
           
-          // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
-          const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
-          // Convert to day index (0=Mon, 1=Tue, ..., 6=Sun)
-          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
-          
-          console.log(`🔍 Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][sessionDayOfWeek]}), DayIndex=${dayIndex} (${days[dayIndex]})`)
-          
           // Verify the session's date is within the week range
           // This ensures we don't show sessions from previous/next week
           const sessionDateMatches = weekDatesInTimezone.includes(sessionDateInTimezone)
           
           if (!sessionDateMatches) {
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week dates: ${weekDatesInTimezone.join(', ')}`)
-            // For now, include it anyway if it's the current week's day of week
-            // This handles edge cases where timezone boundaries cause date mismatches
-            console.log(`✅ Including session anyway based on day of week`)
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week dates: ${weekDatesInTimezone.join(', ')} - SKIPPING`)
+            return // Skip sessions that don't belong to this week
           }
           
-          console.log(`✅ Session: ${sessionDateInTimezone} ${sessionTimeInTimezone} -> day index ${dayIndex} (${days[dayIndex]})`)
+          // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
+          const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
+          // Convert to day index (0=Mon, 1=Tue, ..., 6=Sun)
+          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
+          
+          // Double-check: find which day index this date corresponds to in the week
+          const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
+          if (dateIndex !== -1 && dateIndex !== dayIndex) {
+            console.warn(`⚠️ Date index mismatch: dateIndex=${dateIndex}, dayIndex=${dayIndex}, using dateIndex`)
+            dayIndex = dateIndex
+          }
+          
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
           sessionsByDayIndex[dayIndex].push(session)
-          console.log(`✅ Session on ${sessionDateInTimezone} -> day index ${dayIndex} (${days[dayIndex]})`)
         })
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => `${i}(${days[Number(i)]}): ${sessionsByDayIndex[Number(i)].length}`).join(", "))
