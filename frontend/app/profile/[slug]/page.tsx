@@ -276,25 +276,25 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
     <div className="flex h-screen bg-black text-white flex-col">
       {/* Navbar - matching dashboard */}
       <nav className="border-b border-white/10 bg-black/80 backdrop-blur-md sticky top-0 z-50 flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">DYESB?</h1>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">DYESB?</h1>
           </Link>
 
-          <div className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
-            <Link href="/dashboard" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 absolute left-1/2 -translate-x-1/2 overflow-x-auto scrollbar-hide">
+            <Link href="/dashboard" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
               Dashboard
             </Link>
-            <Link href="/tracker" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
+            <Link href="/tracker" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
               Web Tracker
             </Link>
-            <Link href="/leaderboard" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
+            <Link href="/leaderboard" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
               Leaderboard
             </Link>
-            <Link href="/friends" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
+            <Link href="/friends" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
               Friends
             </Link>
-            <Link href="/settings" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
+            <Link href="/settings" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
               Settings
             </Link>
           </div>
@@ -304,9 +304,9 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
               {currentUser.display_name || currentUser.username || currentUser.email.split("@")[0]}
             </span>
           ) : (
-            <Link href="/login">
-              <Button className="bg-white text-black hover:bg-gray-200">Sign In</Button>
-            </Link>
+          <Link href="/login">
+            <Button className="bg-white text-black hover:bg-gray-200">Sign In</Button>
+          </Link>
           )}
         </div>
       </nav>
@@ -422,35 +422,35 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                   <p className="text-xs text-gray-400 mb-1">Subject breakdown</p>
                   {totalSubjectMinutes > 0 ? (
                     <>
-                      <div className="h-4 rounded-full overflow-hidden flex bg-gray-800">
+                  <div className="h-4 rounded-full overflow-hidden flex bg-gray-800">
                         {subjectStats.map((subject, i) => {
                           const percentage = (subject.minutes / totalSubjectMinutes) * 100
                           return (
-                            <div
-                              key={i}
-                              style={{
+                      <div
+                        key={i}
+                        style={{
                                 width: `${percentage}%`,
                                 backgroundColor: subject.color || "#3b82f6",
                                 minWidth: percentage > 0 ? "2px" : "0",
-                              }}
+                        }}
                               className="h-full relative group"
                               title={`${subject.subject}: ${minutesToHhMm(subject.minutes)}`}
-                            />
+                      />
                           )
                         })}
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
                         {subjectStats.slice(0, 4).map((subject, i) => (
-                          <div key={i} className="flex items-center gap-1">
+                      <div key={i} className="flex items-center gap-1">
                             <div
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: subject.color || "#3b82f6" }}
                             />
-                            <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400">
                               {subject.subject} ({((subject.minutes / totalSubjectMinutes) * 100).toFixed(0)}%)
-                            </span>
-                          </div>
-                        ))}
+                        </span>
+                      </div>
+                    ))}
                         {subjectStats.length > 4 && (
                           <span className="text-xs text-gray-500">+{subjectStats.length - 4} more</span>
                         )}
@@ -459,7 +459,7 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                   ) : (
                     <div className="h-4 rounded-full overflow-hidden flex bg-gray-800">
                       <div className="h-full w-full bg-gray-700" title="No data" />
-                    </div>
+                  </div>
                   )}
                 </div>
               </div>
