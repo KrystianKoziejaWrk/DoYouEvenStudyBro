@@ -164,15 +164,48 @@ export default function WeeklyCalendar() {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
-        // Calculate Sunday in user's timezone from weekStart, then add days
-        // weekStart is Sunday 00:00 UTC, convert to user's timezone
+        // Calculate Sunday directly in user's timezone, then add days
+        // Don't use weekStart (UTC) - calculate from today in user's timezone
+        const today = new Date()
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          weekday: "long"
+        })
+        const todayParts = formatter.formatToParts(today)
+        const todayYear = parseInt(todayParts.find(p => p.type === "year")?.value || "0")
+        const todayMonth = parseInt(todayParts.find(p => p.type === "month")?.value || "0") - 1
+        const todayDay = parseInt(todayParts.find(p => p.type === "day")?.value || "0")
+        const todayWeekday = todayParts.find(p => p.type === "weekday")?.value || "Sunday"
+        
+        const dayMap: { [key: string]: number } = {
+          "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3,
+          "Thursday": 4, "Friday": 5, "Saturday": 6
+        }
+        const daysToSunday = dayMap[todayWeekday] || 0
+        
+        // Calculate Sunday in user's timezone (local date, not UTC)
+        const sundayDate = new Date(todayYear, todayMonth, todayDay)
+        sundayDate.setDate(sundayDate.getDate() - daysToSunday)
+        
+        // Now adjust to match the weekStart (which might be from a different week if user navigated)
+        // Calculate how many weeks difference between today's Sunday and weekStart
+        const weekStartInTimezone = getDateInTimezone(weekStart)
+        const [wsYear, wsMonth, wsDay] = weekStartInTimezone.split('-').map(Number)
+        const weekStartLocal = new Date(wsYear, wsMonth - 1, wsDay)
+        const daysDiff = Math.round((weekStartLocal.getTime() - sundayDate.getTime()) / (1000 * 60 * 60 * 24))
+        sundayDate.setDate(sundayDate.getDate() + daysDiff)
+        
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
-          // Add j days to weekStart (Sunday UTC)
-          const utcDate = new Date(weekStart)
-          utcDate.setUTCDate(weekStart.getUTCDate() + j)
-          // Get this date in user's timezone
-          weekDatesInTimezone.push(getDateInTimezone(utcDate))
+          const weekDate = new Date(sundayDate)
+          weekDate.setDate(sundayDate.getDate() + j)
+          const year = weekDate.getFullYear()
+          const month = String(weekDate.getMonth() + 1).padStart(2, '0')
+          const day = String(weekDate.getDate()).padStart(2, '0')
+          weekDatesInTimezone.push(`${year}-${month}-${day}`)
         }
 
         console.log("📅 Week start (UTC):", weekStart.toISOString())
