@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Zap, Loader2, Check, X } from "lucide-react"
 import { signupWithGoogle, checkUsernameAvailability } from "@/lib/api"
+import Filter from "bad-words"
 
 function SignupPageContent() {
   const router = useRouter()
@@ -22,8 +23,13 @@ function SignupPageContent() {
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameChecking, setUsernameChecking] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const info = searchParams.get("info")
+  
+  // Initialize profanity filter
+  const filter = new Filter()
 
   // Check for Google OAuth data in URL (from OAuth callback for new users)
   useEffect(() => {
@@ -110,6 +116,20 @@ function SignupPageContent() {
       return
     }
     
+    // Check for profanity in display name
+    if (filter.isProfane(displayName.trim())) {
+      setDisplayNameError("Display name contains inappropriate language. Please choose something else.")
+      setError("Display name contains inappropriate language. Please choose something else.")
+      return
+    }
+    
+    // Check for profanity in username
+    if (filter.isProfane(username.trim())) {
+      setUsernameError("Username contains inappropriate language. Please choose something else.")
+      setError("Username contains inappropriate language. Please choose something else.")
+      return
+    }
+    
     if (usernameAvailable === false) {
       setError("Please choose a different username")
       return
@@ -126,7 +146,10 @@ function SignupPageContent() {
     try {
       // If we already have Google email (from OAuth redirect), just complete signup
       // Otherwise, if Google OAuth is configured, redirect to Google first
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      // Use same fallback strategy as login page for reliability
+      const clientId =
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+        "803284551348-u7jt1888te4a2vp2jhuq4p8rvcvg5302.apps.googleusercontent.com"
       
       if (clientId && typeof window !== "undefined" && !googleEmail) {
         // Real Google OAuth - store signup data, then redirect to Google
@@ -176,6 +199,11 @@ function SignupPageContent() {
 
         <h1 className="text-3xl font-bold text-white text-center mb-2">Sign Up</h1>
         <p className="text-center text-gray-400 mb-2">Create your account with Google</p>
+        {info === "account_not_found" && (
+          <p className="text-center text-yellow-400 text-xs mb-4">
+            We couldn&apos;t find an account for that Google email. Create one below to get started.
+          </p>
+        )}
         {googleEmail && (
           <p className="text-center text-green-400 text-xs mb-2">
             ✓ Signed in with Google: {googleEmail}
@@ -202,9 +230,16 @@ function SignupPageContent() {
               type="text"
               placeholder="Your Display Name"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => {
+                setDisplayName(e.target.value)
+                setDisplayNameError(null)
+                setError(null)
+              }}
               className="bg-gray-900/50 border-white/10 text-white placeholder:text-gray-500"
             />
+            {displayNameError && (
+              <p className="text-red-400 text-xs mt-1">{displayNameError}</p>
+            )}
           </div>
 
           <div>

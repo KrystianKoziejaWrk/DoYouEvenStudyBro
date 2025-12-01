@@ -10,6 +10,7 @@ import { Settings, Loader2, Check, LogOut } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-provider"
 import { checkUsernameAvailability, getCurrentUser, updateCurrentUser } from "@/lib/api"
+import Filter from "bad-words"
 
 type PrivacySetting = "public" | "friends"
 
@@ -45,6 +46,10 @@ function SettingsPageContent() {
   const [showUsernameSuccess, setShowUsernameSuccess] = useState(false)
   const [showPrivacySuccess, setShowPrivacySuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null)
+  
+  // Initialize profanity filter
+  const filter = new Filter()
 
   // Fetch user data on mount
   useEffect(() => {
@@ -165,8 +170,16 @@ function SettingsPageContent() {
       return
     }
 
+    // Check for profanity in display name
+    if (filter.isProfane(displayName.trim())) {
+      setDisplayNameError("Display name contains inappropriate language. Please choose something else.")
+      setError("Display name contains inappropriate language. Please choose something else.")
+      return
+    }
+
     setSaving(true)
     setError(null)
+    setDisplayNameError(null)
 
     try {
       const userData = await updateCurrentUser({ display_name: displayName.trim() })
@@ -199,6 +212,13 @@ function SettingsPageContent() {
       return
     }
 
+    // Check for profanity in username
+    if (filter.isProfane(username.trim())) {
+      setUsernameError("Username contains inappropriate language. Please choose something else.")
+      setError("Username contains inappropriate language. Please choose something else.")
+      return
+    }
+
     // Check if username is available (like signup page)
     if (usernameAvailable === false) {
       setUsernameError("Please choose a different username")
@@ -212,6 +232,7 @@ function SettingsPageContent() {
 
     setSavingUsername(true)
     setUsernameError(null)
+    setError(null)
     setError(null)
 
     try {
@@ -392,10 +413,17 @@ function SettingsPageContent() {
                 <Input
                   placeholder="Enter your display name"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => {
+                    setDisplayName(e.target.value)
+                    setDisplayNameError(null)
+                    setError(null)
+                  }}
                   className="bg-gray-900/50 border-white/10 text-white placeholder:text-gray-500"
                 />
-                {!displayName && (
+                {displayNameError && (
+                  <p className="text-red-400 text-xs mt-1">{displayNameError}</p>
+                )}
+                {!displayName && !displayNameError && (
                   <p className="text-yellow-400 text-xs mt-1">You must set a display name to continue</p>
                 )}
                 <Button

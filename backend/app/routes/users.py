@@ -5,6 +5,28 @@ from app import db
 from app.models import User
 from app.models import utc_now
 
+# Try to import better-profanity for content filtering
+try:
+    from better_profanity import profanity
+    PROFANITY_AVAILABLE = True
+    profanity.load_censor_words()
+except ImportError:
+    PROFANITY_AVAILABLE = False
+    profanity = None
+
+def contains_profanity(text):
+    """Check if text contains profanity. Returns (has_profanity, error_message)."""
+    if not PROFANITY_AVAILABLE:
+        return False, None
+    
+    if not text:
+        return False, None
+    
+    if profanity.contains_profanity(text):
+        return True, "This username or display name contains inappropriate language. Please choose something else."
+    
+    return False, None
+
 users_bp = Blueprint("users", __name__)
 
 def get_current_user():
@@ -32,7 +54,13 @@ def update_me():
     
     # Update display_name (allow null or empty to clear)
     if "display_name" in data:
-        user.display_name = data["display_name"] if data["display_name"] else None
+        new_display_name = data["display_name"] if data["display_name"] else None
+        if new_display_name:
+            # Check for profanity in display_name
+            has_profanity, profanity_error = contains_profanity(new_display_name)
+            if has_profanity:
+                return jsonify({"error": profanity_error}), 400
+        user.display_name = new_display_name
     
     # Update timezone
     if "timezone" in data:
@@ -52,6 +80,11 @@ def update_me():
         # Validate length
         if len(new_username) < 3 or len(new_username) > 32:
             return jsonify({"error": "Username must be between 3 and 32 characters"}), 400
+        
+        # Check for profanity in username
+        has_profanity, profanity_error = contains_profanity(new_username)
+        if has_profanity:
+            return jsonify({"error": profanity_error}), 400
         
         # Check uniqueness
         existing = User.query.filter_by(username=new_username).first()

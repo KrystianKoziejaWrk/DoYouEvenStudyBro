@@ -16,6 +16,31 @@ except ImportError:
     verify_id_token = None
     google_requests = None
 
+# Try to import better-profanity for content filtering
+try:
+    from better_profanity import profanity
+    PROFANITY_AVAILABLE = True
+    # Customize profanity filter - make it stricter
+    profanity.load_censor_words()
+except ImportError:
+    PROFANITY_AVAILABLE = False
+    profanity = None
+
+def contains_profanity(text):
+    """Check if text contains profanity. Returns (has_profanity, error_message)."""
+    if not PROFANITY_AVAILABLE:
+        # If library not available, skip check (shouldn't happen in production)
+        return False, None
+    
+    if not text:
+        return False, None
+    
+    # Check for profanity
+    if profanity.contains_profanity(text):
+        return True, "This username or display name contains inappropriate language. Please choose something else."
+    
+    return False, None
+
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/check-username", methods=["GET"])
@@ -32,6 +57,11 @@ def check_username():
     
     if not username.replace("_", "").isalnum():
         return jsonify({"available": False, "error": "Username can only contain letters, numbers, and underscores"}), 400
+    
+    # Check for profanity
+    has_profanity, profanity_error = contains_profanity(username)
+    if has_profanity:
+        return jsonify({"available": False, "error": profanity_error}), 400
     
     # Check if taken
     existing = User.query.filter_by(username=username).first()
@@ -77,6 +107,16 @@ def signup():
     
     if not username.replace("_", "").isalnum():
         return jsonify({"error": "Username can only contain letters, numbers, and underscores"}), 400
+    
+    # Check for profanity in username
+    has_profanity, profanity_error = contains_profanity(username)
+    if has_profanity:
+        return jsonify({"error": profanity_error}), 400
+    
+    # Check for profanity in display_name
+    has_profanity, profanity_error = contains_profanity(display_name)
+    if has_profanity:
+        return jsonify({"error": profanity_error}), 400
     
     # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
@@ -290,6 +330,9 @@ def google_oauth_callback():
         if not email:
             return jsonify({"error": "Email not provided by Google"}), 400
         
+        # Track whether this is a brand new user or an existing one
+        user_was_created = False
+
         # Find or create user
         user = User.query.filter_by(email=email).first()
         if not user and google_sub:
@@ -323,6 +366,22 @@ def google_oauth_callback():
                         "email": email
                     }), 400
                 
+                # Check for profanity in username
+                has_profanity, profanity_error = contains_profanity(username)
+                if has_profanity:
+                    return jsonify({
+                        "error": profanity_error,
+                        "email": email
+                    }), 400
+                
+                # Check for profanity in display_name
+                has_profanity, profanity_error = contains_profanity(display_name)
+                if has_profanity:
+                    return jsonify({
+                        "error": profanity_error,
+                        "email": email
+                    }), 400
+                
                 # Check if username is taken
                 existing_username = User.query.filter_by(username=username).first()
                 if existing_username:
@@ -337,17 +396,17 @@ def google_oauth_callback():
                 email_domain = email.split("@")[1].lower()
                 
                 # Create new user
-                user = User(
-                    email=email,
-                    email_domain=email_domain,
-                    google_sub=google_sub,
+        user = User(
+            email=email,
+            email_domain=email_domain,
+            google_sub=google_sub,
                     display_name=display_name,
-                    username=username,
-                    created_at=utc_now()
-                )
+            username=username,
+            created_at=utc_now()
+        )
                 
                 try:
-                    db.session.add(user)
+        db.session.add(user)
                     db.session.flush()  # Flush to get user.id
                     
                     # Create default "All Subjects" subject for new user
@@ -359,15 +418,16 @@ def google_oauth_callback():
                         created_at=utc_now()
                     )
                     db.session.add(default_subject)
-                    db.session.commit()
+        db.session.commit()
                     print(f"✅ Created new user: {user.id} ({user.email}) with username: {user.username}")
+                    user_was_created = True
                 except Exception as e:
                     db.session.rollback()
                     print(f"❌ Signup exception: {str(e)}")
                     import traceback
                     traceback.print_exc()
                     return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
-            else:
+    else:
                 # No pending signup data - user needs to signup first
                 return jsonify({
                     "error": "Account not found. Please sign up first.",
@@ -380,7 +440,7 @@ def google_oauth_callback():
         if google_sub and not user.google_sub:
             user.google_sub = google_sub
             db.session.commit()
-        
+    
         # Generate JWT
         from datetime import timedelta
         access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=7))
@@ -390,7 +450,12 @@ def google_oauth_callback():
         
         return jsonify({
             "access_token": access_token,
-            "user": user.to_dict()
+            "user": user.to_dict(),
+            # Expose whether this Google flow created a new account or used an existing one.
+            # Frontend can use this to show a small popup/toast like:
+            # - "Account created" (status = "created")
+            # - "You're already registered, logging you in" (status = "existing")
+            "status": "created" if user_was_created else "existing"
         }), 200
         
     except Exception as e:
@@ -402,7 +467,7 @@ def google_oauth_callback():
             "error": f"OAuth callback failed: {str(e)}",
             "type": type(e).__name__
         }), 500
-
+    
 # Legacy endpoints for backwards compatibility (can be removed later)
 @auth_bp.route("/google", methods=["POST"])
 def google_login_post():
@@ -438,11 +503,11 @@ def google_login_post():
         
         from datetime import timedelta
         access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=7))
-        
-        return jsonify({
-            "access_token": access_token,
-            "user": user.to_dict()
-        }), 200
+    
+    return jsonify({
+        "access_token": access_token,
+        "user": user.to_dict()
+    }), 200
     else:
         # User doesn't exist - they need to signup
         return jsonify({"error": "Account not found. Please sign up first."}), 404
