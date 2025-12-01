@@ -386,9 +386,11 @@ export default function WeeklyCalendar() {
             <span className="text-sm text-gray-400 w-32 text-center">
               {(() => {
                 // weekStart is Sunday UTC, convert to user's timezone for display
+                // Shift by 1 day to match the calendar dates
                 const startDate = new Date(weekStart)
                 const endDate = new Date(weekStart)
-                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Add 6 days to get Saturday
+                startDate.setUTCDate(weekStart.getUTCDate() + 1) // Shift forward by 1 day
+                endDate.setUTCDate(weekStart.getUTCDate() + 7) // Add 7 days (6 + 1 shift) to get Saturday
                 const startStr = startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 const endStr = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 return `${startStr} - ${endStr}`
