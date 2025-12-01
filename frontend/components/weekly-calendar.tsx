@@ -169,7 +169,9 @@ export default function WeeklyCalendar() {
         const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
         
         // Create Sunday date in user's timezone (local date object)
+        // Add 1 day to shift dates forward
         const sundayDate = new Date(wsYear, wsMonth - 1, wsDay)
+        sundayDate.setDate(sundayDate.getDate() + 1)
         
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
