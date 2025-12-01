@@ -427,7 +427,7 @@ def google_oauth_callback():
                     import traceback
                     traceback.print_exc()
                     return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
-    else:
+            else:
                 # No pending signup data - user needs to signup first
                 return jsonify({
                     "error": "Account not found. Please sign up first.",
