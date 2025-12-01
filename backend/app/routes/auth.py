@@ -267,7 +267,7 @@ def google_oauth_callback():
             return jsonify({"error": "No ID token received"}), 400
         
         # Verify ID token
-        from google.oauth2 import id_token as verify_id_token
+        from google.auth import id_token as verify_id_token
         from google.auth.transport import requests as google_requests
         
         request_obj = google_requests.Request()
