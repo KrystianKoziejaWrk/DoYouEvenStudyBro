@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Settings, Loader2, Check, LogOut } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-provider"
-import { checkUsernameAvailability } from "@/lib/api"
+import { checkUsernameAvailability, getCurrentUser, updateCurrentUser } from "@/lib/api"
 
 type PrivacySetting = "public" | "friends"
 
@@ -56,21 +56,14 @@ function SettingsPageContent() {
       }
 
       try {
-        const res = await fetch("http://127.0.0.1:5001/api/users/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        if (res.ok) {
-          const user: UserProfile = await res.json()
-          const displayNameValue = user.display_name || ""
-          setDisplayName(displayNameValue)
-          setInitialDisplayName(user.display_name || null)
-          setUsername(user.username || "")
-          setCurrentUsername(user.username || "")
-          setEmail(user.email || "")
-          setPrivacy(user.privacy_opt_in ? "public" : "friends")
+        const user: UserProfile = await getCurrentUser()
+        const displayNameValue = user.display_name || ""
+        setDisplayName(displayNameValue)
+        setInitialDisplayName(user.display_name || null)
+        setUsername(user.username || "")
+        setCurrentUsername(user.username || "")
+        setEmail(user.email || "")
+        setPrivacy(user.privacy_opt_in ? "public" : "friends")
           
           // Calculate rate limit remaining if username was changed recently
           if (user.username_changed_at) {
@@ -91,15 +84,14 @@ function SettingsPageContent() {
           } else {
             setRateLimitRemaining(null)
           }
-        } else if (res.status === 401) {
+      } catch (err: any) {
+        if (err.message?.includes("401") || err.message?.includes("422")) {
           // Token invalid, redirect to login
           localStorage.removeItem("access_token")
           router.push("/login")
         } else {
           setError("Failed to load user data")
         }
-      } catch (err) {
-        setError("Failed to connect to server")
       } finally {
         setLoading(false)
       }
@@ -177,35 +169,21 @@ function SettingsPageContent() {
     setError(null)
 
     try {
-      const res = await fetch("http://127.0.0.1:5001/api/users/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ display_name: displayName.trim() }),
-      })
-
-      if (res.ok) {
-        const userData = await res.json()
-        setShowSuccess(true)
-        setInitialDisplayName(userData.display_name)
-        // If this was the first time setting display_name (was null/empty before), check if username is also set
-        const wasFirstTime = !initialDisplayName || initialDisplayName === ""
-        if (wasFirstTime && username) {
-          // Both display_name and username are set, redirect to dashboard
-          setTimeout(() => {
-            router.push("/dashboard")
-          }, 1500)
-        } else {
-        setTimeout(() => setShowSuccess(false), 2000)
-        }
+      const userData = await updateCurrentUser({ display_name: displayName.trim() })
+      setShowSuccess(true)
+      setInitialDisplayName(userData.display_name)
+      // If this was the first time setting display_name (was null/empty before), check if username is also set
+      const wasFirstTime = !initialDisplayName || initialDisplayName === ""
+      if (wasFirstTime && username) {
+        // Both display_name and username are set, redirect to dashboard
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 1500)
       } else {
-        const errorData = await res.json().catch(() => ({}))
-        setError(errorData.error || "Failed to save changes")
+        setTimeout(() => setShowSuccess(false), 2000)
       }
-    } catch (err) {
-      setError("Failed to connect to server")
+    } catch (err: any) {
+      setError(err.message || "Failed to save changes")
     } finally {
       setSaving(false)
     }
@@ -237,41 +215,37 @@ function SettingsPageContent() {
     setError(null)
 
     try {
-      const res = await fetch("http://127.0.0.1:5001/api/users/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ username: username.trim().toLowerCase() }),
-      })
-
-      if (res.ok) {
-        setShowUsernameSuccess(true)
-        setRateLimitRemaining(null) // Reset rate limit after successful change
-        // If display_name is also set, redirect to dashboard (first-time setup complete)
-        if (displayName && displayName.trim()) {
-          setTimeout(() => {
-            router.push("/dashboard")
-          }, 1500)
-        } else {
+      await updateCurrentUser({ username: username.trim().toLowerCase() })
+      setShowUsernameSuccess(true)
+      setRateLimitRemaining(null) // Reset rate limit after successful change
+      // If display_name is also set, redirect to dashboard (first-time setup complete)
+      if (displayName && displayName.trim()) {
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 1500)
+      } else {
         setTimeout(() => setShowUsernameSuccess(false), 2000)
+      }
+    } catch (err: any) {
+      // Handle rate limit error with time remaining
+      const errorMessage = err.message || ""
+      if (errorMessage.includes("429") || errorMessage.includes("rate")) {
+        // Try to parse rate limit info from error
+        try {
+          const errorData = JSON.parse(errorMessage)
+          if (errorData.rate_limited && errorData.remaining) {
+            setRateLimitRemaining(errorData.remaining)
+            const { days, hours, minutes } = errorData.remaining
+            setUsernameError(`Username can only be changed once every 30 days. Time remaining: ${days}d ${hours}h ${minutes}m`)
+          } else {
+            setUsernameError(errorData.error || "Failed to update username")
+          }
+        } catch {
+          setUsernameError(errorMessage || "Failed to update username")
         }
       } else {
-        const data = await res.json().catch(() => ({}))
-        
-        // Handle rate limit error with time remaining
-        if (res.status === 429 && data.rate_limited && data.remaining) {
-          setRateLimitRemaining(data.remaining)
-          const { days, hours, minutes } = data.remaining
-          setUsernameError(`Username can only be changed once every 30 days. Time remaining: ${days}d ${hours}h ${minutes}m`)
-        } else {
-          setUsernameError(data.error || "Failed to update username")
-        }
+        setUsernameError(errorMessage || "Failed to update username")
       }
-    } catch (err) {
-      // Only show connection error if it's actually a connection issue, not a rate limit
-      setError("Failed to connect to server. Please check your internet connection.")
     } finally {
       setSavingUsername(false)
     }
@@ -287,23 +261,11 @@ function SettingsPageContent() {
     const privacy_opt_in = privacy === "public"
 
     try {
-      const res = await fetch("http://127.0.0.1:5001/api/users/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ privacy_opt_in }),
-      })
-
-      if (res.ok) {
-        setShowPrivacySuccess(true)
-        setTimeout(() => setShowPrivacySuccess(false), 2000)
-      } else {
-        setError("Failed to save privacy settings")
-      }
-    } catch (err) {
-      setError("Failed to connect to server")
+      await updateCurrentUser({ privacy_opt_in })
+      setShowPrivacySuccess(true)
+      setTimeout(() => setShowPrivacySuccess(false), 2000)
+    } catch (err: any) {
+      setError(err.message || "Failed to save privacy settings")
     } finally {
       setSavingPrivacy(false)
     }
