@@ -181,9 +181,11 @@ function SignupPageContent() {
             ✓ Signed in with Google: {googleEmail}
           </p>
         )}
-        <p className="text-center text-yellow-400 text-xs mb-6">
-          {googleEmail ? "Complete your profile below" : "⚠️ Dev Mode: Fill in your info, then click to create account"}
-        </p>
+        {googleEmail && (
+          <p className="text-center text-gray-400 text-xs mb-6">
+            Complete your profile below
+          </p>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm">
