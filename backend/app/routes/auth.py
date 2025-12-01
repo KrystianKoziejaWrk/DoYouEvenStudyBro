@@ -5,6 +5,17 @@ from app import db
 from app.models import User
 from app.models import utc_now
 
+# Try to import google-auth at module level
+try:
+    from google.auth import id_token as verify_id_token
+    from google.auth.transport import requests as google_requests
+    import requests
+    GOOGLE_AUTH_AVAILABLE = True
+except ImportError:
+    GOOGLE_AUTH_AVAILABLE = False
+    verify_id_token = None
+    google_requests = None
+
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/check-username", methods=["GET"])
@@ -218,8 +229,10 @@ def google_oauth_callback():
         except:
             print(f"⚠️ Failed to parse pending_signup: {pending_signup_json}")
     
+    if not GOOGLE_AUTH_AVAILABLE:
+        return jsonify({"error": "Google OAuth libraries not installed. Please contact support."}), 500
+    
     try:
-        import requests
         import os
         
         client_id = os.getenv("GOOGLE_CLIENT_ID")
@@ -267,9 +280,6 @@ def google_oauth_callback():
             return jsonify({"error": "No ID token received"}), 400
         
         # Verify ID token
-        from google.auth import id_token as verify_id_token
-        from google.auth.transport import requests as google_requests
-        
         request_obj = google_requests.Request()
         idinfo = verify_id_token.verify_oauth2_token(id_token, request_obj, client_id)
         
@@ -383,10 +393,6 @@ def google_oauth_callback():
             "user": user.to_dict()
         }), 200
         
-    except ImportError:
-        # google-auth not installed
-        print("❌ ERROR: google-auth not installed")
-        return jsonify({"error": "Google OAuth libraries not installed. Run: pip install google-auth requests"}), 500
     except Exception as e:
         import traceback
         print(f"❌ OAuth callback exception: {str(e)}")
