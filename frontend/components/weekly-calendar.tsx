@@ -211,8 +211,8 @@ export default function WeeklyCalendar() {
           
           // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
           const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
-          // Convert to day index (0=Mon, 1=Tue, ..., 6=Sun)
-          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
+          // Map to day index (0=Sun, 1=Mon, ..., 6=Sat) - already matches!
+          let dayIndex = sessionDayOfWeek
           
           // Double-check: find which day index this date corresponds to in the week
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
@@ -437,11 +437,7 @@ export default function WeeklyCalendar() {
             )) : (
               // Show empty week days
               Array.from({ length: 7 }).map((_, i) => {
-                const date = new Date(weekStart)
-                date.setUTCDate(weekStart.getUTCDate() + i)
-                const utcDay = date.getUTCDay()
-                const dayIndex = utcDay === 0 ? 6 : utcDay - 1
-                const dayName = days[dayIndex]
+                const dayName = days[i]
                 return (
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
