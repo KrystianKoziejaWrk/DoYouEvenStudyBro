@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Zap, Loader2, Check, X } from "lucide-react"
 import { signupWithGoogle, checkUsernameAvailability } from "@/lib/api"
-import Filter from "bad-words"
+import { Filter } from "bad-words"
 
 function SignupPageContent() {
   const router = useRouter()

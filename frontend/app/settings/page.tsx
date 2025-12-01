@@ -10,7 +10,7 @@ import { Settings, Loader2, Check, LogOut } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/lib/auth-provider"
 import { checkUsernameAvailability, getCurrentUser, updateCurrentUser } from "@/lib/api"
-import Filter from "bad-words"
+import { Filter } from "bad-words"
 
 type PrivacySetting = "public" | "friends"
 
