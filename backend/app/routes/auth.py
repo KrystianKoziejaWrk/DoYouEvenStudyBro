@@ -7,7 +7,7 @@ from app.models import utc_now
 
 # Try to import google-auth at module level
 try:
-    from google.auth import id_token as verify_id_token
+    from google.oauth2 import id_token as verify_id_token
     from google.auth.transport import requests as google_requests
     import requests
     GOOGLE_AUTH_AVAILABLE = True
