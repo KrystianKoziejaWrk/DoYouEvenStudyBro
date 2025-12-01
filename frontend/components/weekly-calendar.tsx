@@ -29,8 +29,51 @@ interface DaySchedule {
 export default function WeeklyCalendar() {
   const [data, setData] = useState<DaySchedule[]>([])
   const [loading, setLoading] = useState(true)
-  const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()))
   const { selectedSubject, showAllSubjects, subjects, timezone } = useFilterStore()
+  
+  // Calculate Monday in user's timezone, not UTC
+  const getMondayInTimezone = (date: Date): Date => {
+    // Get the date in the user's timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "long"
+    })
+    const parts = formatter.formatToParts(date)
+    const year = parseInt(parts.find(p => p.type === "year")?.value || "0")
+    const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1
+    const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
+    const weekday = parts.find(p => p.type === "weekday")?.value || "Monday"
+    
+    // Calculate days to subtract to get to Monday
+    const dayMap: { [key: string]: number } = {
+      "Sunday": 6,
+      "Monday": 0,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 3,
+      "Friday": 4,
+      "Saturday": 5
+    }
+    const daysToSubtract = dayMap[weekday] || 0
+    
+    // Create date in user's timezone at noon to avoid DST issues
+    const localDate = new Date(year, month, day, 12, 0, 0)
+    localDate.setDate(localDate.getDate() - daysToSubtract)
+    
+    // Convert to UTC for API calls (backend expects UTC)
+    const utcDate = new Date(Date.UTC(
+      localDate.getFullYear(),
+      localDate.getMonth(),
+      localDate.getDate(),
+      0, 0, 0
+    ))
+    return utcDate
+  }
+  
+  const [weekStart, setWeekStart] = useState<Date>(() => getMondayInTimezone(new Date()))
 
   const [weeklyStats, setWeeklyStats] = useState({
     totalHours: 0,
@@ -121,11 +164,39 @@ export default function WeeklyCalendar() {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
+        // Start from Monday in user's timezone
+        const todayInTimezone = new Date()
+        const formatterToday = new Intl.DateTimeFormat("en-US", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          weekday: "long"
+        })
+        const todayParts = formatterToday.formatToParts(todayInTimezone)
+        const todayYear = parseInt(todayParts.find(p => p.type === "year")?.value || "0")
+        const todayMonth = parseInt(todayParts.find(p => p.type === "month")?.value || "0") - 1
+        const todayDay = parseInt(todayParts.find(p => p.type === "day")?.value || "0")
+        const todayWeekday = todayParts.find(p => p.type === "weekday")?.value || "Monday"
+        
+        const dayMap: { [key: string]: number } = {
+          "Sunday": 6, "Monday": 0, "Tuesday": 1, "Wednesday": 2,
+          "Thursday": 3, "Friday": 4, "Saturday": 5
+        }
+        const daysToMonday = dayMap[todayWeekday] || 0
+        
+        // Calculate Monday of current week in user's timezone
+        const mondayInTimezone = new Date(todayYear, todayMonth, todayDay, 12, 0, 0)
+        mondayInTimezone.setDate(mondayInTimezone.getDate() - daysToMonday)
+        
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
-          const weekDate = new Date(weekStart)
-          weekDate.setUTCDate(weekStart.getUTCDate() + j)
-          weekDatesInTimezone.push(getDateInTimezone(weekDate))
+          const weekDate = new Date(mondayInTimezone)
+          weekDate.setDate(mondayInTimezone.getDate() + j)
+          const year = weekDate.getFullYear()
+          const month = String(weekDate.getMonth() + 1).padStart(2, '0')
+          const day = String(weekDate.getDate()).padStart(2, '0')
+          weekDatesInTimezone.push(`${year}-${month}-${day}`)
         }
 
         console.log("📅 Week start (UTC):", weekStart.toISOString())
