@@ -224,7 +224,7 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
       }
     }
     loadData()
-  }, [username, selectedSubject, subjects, showAllSubjects])
+  }, [username, selectedSubject, subjects, showAllSubjects, timezone])
 
   if (!username || loading) {
     return (
