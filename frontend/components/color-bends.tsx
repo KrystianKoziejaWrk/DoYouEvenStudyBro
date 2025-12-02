@@ -140,10 +140,16 @@ export default function ColorBends({
   const pointerCurrentRef = useRef<THREE.Vector2>(new THREE.Vector2(0, 0))
   const pointerSmoothRef = useRef<number>(8)
   const [webglError, setWebglError] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Set mounted flag on client side only
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    if (!container || !mounted) return
 
     // Check if WebGL is available
     try {
@@ -280,10 +286,10 @@ export default function ColorBends({
         // Cleanup function for error case (no-op)
       }
     }
-  }, [])
+  }, [mounted, speed, scale, frequency, warpStrength, mouseInfluence, parallax, noise, transparent, colors])
 
-  // Fallback gradient background if WebGL fails
-  if (webglError) {
+  // Fallback gradient background if WebGL fails (only after mount to prevent hydration mismatch)
+  if (mounted && webglError) {
     const gradientColors = colors.length > 0 ? colors : ["#ff5c7a", "#ff9f43", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ee5a24"]
     const gradientStops = gradientColors.map((color, i) => `${color} ${(i / (gradientColors.length - 1)) * 100}%`).join(", ")
     
