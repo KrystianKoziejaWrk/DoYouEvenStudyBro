@@ -68,13 +68,18 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
       try {
         console.log("📊 Loading profile data for:", username)
         
-        // Calculate date ranges
+        // Calculate date ranges (Sunday-Saturday, matching weekly calendar)
+        // Use viewer's timezone to calculate week boundaries
         const today = new Date()
-        const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1
+        const daysSinceSunday = today.getDay() // 0 = Sunday, 1 = Monday, etc.
         const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - daysSinceMonday)
+        weekStart.setDate(today.getDate() - daysSinceSunday)
+        weekStart.setHours(0, 0, 0, 0) // Start of Sunday in viewer's timezone
         const weekEnd = new Date(today)
+        weekEnd.setHours(23, 59, 59, 999) // End of today
         
+        // Convert to ISO date strings (YYYY-MM-DD) for API calls
+        // The backend will handle timezone conversion for the actual session queries
         const startDate = weekStart.toISOString().split("T")[0]
         const endDate = weekEnd.toISOString().split("T")[0]
         

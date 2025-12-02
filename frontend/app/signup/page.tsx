@@ -155,8 +155,37 @@ function SignupPageContent() {
       console.log("- Client ID from env:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND (using fallback)")
       console.log("- Using Client ID:", clientId ? "Found" : "ERROR")
       
+      // If we already have Google email, complete signup directly
+      if (googleEmail && googleSub) {
+        // Complete signup with Google OAuth data
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/api"
+        const response = await fetch(`${backendUrl}/auth/signup`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: googleEmail,
+            display_name: displayName.trim(),
+            username: username.trim().toLowerCase(),
+            google_sub: googleSub,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok && data.access_token) {
+          localStorage.setItem("access_token", data.access_token)
+          const status = data.status === "created" ? "created" : "existing"
+          router.push(`/dashboard?signup_status=${status}`)
+          return
+        } else {
+          throw new Error(data.error || "Signup failed. Please try again.")
+        }
+      }
+
       // Always redirect if we have a client ID (which we always do with fallback)
-      if (typeof window !== "undefined" && clientId && !googleEmail) {
+      if (typeof window !== "undefined" && clientId) {
         // Real Google OAuth - store signup data, then redirect to Google
         const pendingSignup = JSON.stringify({
           display_name: displayName.trim(),
