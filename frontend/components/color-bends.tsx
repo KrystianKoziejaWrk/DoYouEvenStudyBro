@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import * as THREE from "three"
 
 type ColorBendsProps = {
@@ -139,47 +139,72 @@ export default function ColorBends({
   const pointerTargetRef = useRef<THREE.Vector2>(new THREE.Vector2(0, 0))
   const pointerCurrentRef = useRef<THREE.Vector2>(new THREE.Vector2(0, 0))
   const pointerSmoothRef = useRef<number>(8)
+  const [webglError, setWebglError] = useState(false)
 
   useEffect(() => {
-    const container = containerRef.current!
-    const scene = new THREE.Scene()
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    const container = containerRef.current
+    if (!container) return
 
-    const geometry = new THREE.PlaneGeometry(2, 2)
-    const uColorsArray = Array.from({ length: MAX_COLORS }, () => new THREE.Vector3(0, 0, 0))
-    const material = new THREE.ShaderMaterial({
-      vertexShader: vert,
-      fragmentShader: frag,
-      uniforms: {
-        uCanvas: { value: new THREE.Vector2(1, 1) },
-        uTime: { value: 0 },
-        uSpeed: { value: speed },
-        uRot: { value: new THREE.Vector2(1, 0) },
-        uColorCount: { value: 0 },
-        uColors: { value: uColorsArray },
-        uTransparent: { value: transparent ? 1 : 0 },
-        uScale: { value: scale },
-        uFrequency: { value: frequency },
-        uWarpStrength: { value: warpStrength },
-        uPointer: { value: new THREE.Vector2(0, 0) },
-        uMouseInfluence: { value: mouseInfluence },
-        uParallax: { value: parallax },
-        uNoise: { value: noise },
-      },
-      premultipliedAlpha: true,
-      transparent: true,
-    })
-    materialRef.current = material
+    // Check if WebGL is available
+    try {
+      const canvas = document.createElement("canvas")
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+      if (!gl) {
+        console.warn("WebGL not available, using fallback background")
+        setWebglError(true)
+        return
+      }
+    } catch (e) {
+      console.warn("WebGL check failed, using fallback background", e)
+      setWebglError(true)
+      return
+    }
 
-    const mesh = new THREE.Mesh(geometry, material)
-    scene.add(mesh)
+    try {
+      const scene = new THREE.Scene()
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      powerPreference: "high-performance",
-      alpha: true,
-    })
-    rendererRef.current = renderer
+      const geometry = new THREE.PlaneGeometry(2, 2)
+      const uColorsArray = Array.from({ length: MAX_COLORS }, () => new THREE.Vector3(0, 0, 0))
+      const material = new THREE.ShaderMaterial({
+        vertexShader: vert,
+        fragmentShader: frag,
+        uniforms: {
+          uCanvas: { value: new THREE.Vector2(1, 1) },
+          uTime: { value: 0 },
+          uSpeed: { value: speed },
+          uRot: { value: new THREE.Vector2(1, 0) },
+          uColorCount: { value: 0 },
+          uColors: { value: uColorsArray },
+          uTransparent: { value: transparent ? 1 : 0 },
+          uScale: { value: scale },
+          uFrequency: { value: frequency },
+          uWarpStrength: { value: warpStrength },
+          uPointer: { value: new THREE.Vector2(0, 0) },
+          uMouseInfluence: { value: mouseInfluence },
+          uParallax: { value: parallax },
+          uNoise: { value: noise },
+        },
+        premultipliedAlpha: true,
+        transparent: true,
+      })
+      materialRef.current = material
+
+      const mesh = new THREE.Mesh(geometry, material)
+      scene.add(mesh)
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        powerPreference: "high-performance",
+        alpha: true,
+      })
+      
+      // Check if renderer was created successfully
+      if (!renderer || !renderer.domElement) {
+        throw new Error("Failed to create WebGL renderer")
+      }
+      
+      rendererRef.current = renderer
     ;(renderer as any).outputColorSpace = (THREE as any).SRGBColorSpace
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.setClearColor(0x000000, transparent ? 0 : 1)
@@ -238,8 +263,38 @@ export default function ColorBends({
       if (renderer.domElement && renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement)
       }
+    } catch (error) {
+      console.error("ColorBends WebGL initialization failed:", error)
+      setWebglError(true)
+      // Clean up any partial initialization
+      if (rendererRef.current) {
+        try {
+          rendererRef.current.dispose()
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        rendererRef.current = null
+      }
     }
   }, [])
+
+  // Fallback gradient background if WebGL fails
+  if (webglError) {
+    const gradientColors = colors.length > 0 ? colors : ["#ff5c7a", "#ff9f43", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ee5a24"]
+    const gradientStops = gradientColors.map((color, i) => `${color} ${(i / (gradientColors.length - 1)) * 100}%`).join(", ")
+    
+    return (
+      <div
+        ref={containerRef}
+        className={`w-full h-full relative overflow-hidden ${className}`}
+        style={{
+          ...style,
+          background: `linear-gradient(135deg, ${gradientStops})`,
+          opacity: transparent ? 0.3 : 1,
+        }}
+      />
+    )
+  }
 
   useEffect(() => {
     const material = materialRef.current
