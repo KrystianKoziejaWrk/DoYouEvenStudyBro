@@ -232,36 +232,37 @@ export default function ColorBends({
       ;(window as Window).addEventListener("resize", handleResize)
     }
 
-    const loop = () => {
-      const dt = clock.getDelta()
-      const elapsed = clock.elapsedTime
-      material.uniforms.uTime.value = elapsed
+      const loop = () => {
+        const dt = clock.getDelta()
+        const elapsed = clock.elapsedTime
+        material.uniforms.uTime.value = elapsed
 
-      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed
-      const rad = (deg * Math.PI) / 180
-      const c = Math.cos(rad)
-      const s = Math.sin(rad)
-      ;(material.uniforms.uRot.value as THREE.Vector2).set(c, s)
+        const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed
+        const rad = (deg * Math.PI) / 180
+        const c = Math.cos(rad)
+        const s = Math.sin(rad)
+        ;(material.uniforms.uRot.value as THREE.Vector2).set(c, s)
 
-      const cur = pointerCurrentRef.current
-      const tgt = pointerTargetRef.current
-      const amt = Math.min(1, dt * pointerSmoothRef.current)
-      cur.lerp(tgt, amt)
-      ;(material.uniforms.uPointer.value as THREE.Vector2).copy(cur)
-      renderer.render(scene, camera)
+        const cur = pointerCurrentRef.current
+        const tgt = pointerTargetRef.current
+        const amt = Math.min(1, dt * pointerSmoothRef.current)
+        cur.lerp(tgt, amt)
+        ;(material.uniforms.uPointer.value as THREE.Vector2).copy(cur)
+        renderer.render(scene, camera)
+        rafRef.current = requestAnimationFrame(loop)
+      }
       rafRef.current = requestAnimationFrame(loop)
-    }
-    rafRef.current = requestAnimationFrame(loop)
 
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
-      if (resizeObserverRef.current) resizeObserverRef.current.disconnect()
-      else (window as Window).removeEventListener("resize", handleResize)
-      geometry.dispose()
-      material.dispose()
-      renderer.dispose()
-      if (renderer.domElement && renderer.domElement.parentElement === container) {
-        container.removeChild(renderer.domElement)
+      return () => {
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+        if (resizeObserverRef.current) resizeObserverRef.current.disconnect()
+        else (window as Window).removeEventListener("resize", handleResize)
+        geometry.dispose()
+        material.dispose()
+        renderer.dispose()
+        if (renderer.domElement && renderer.domElement.parentElement === container) {
+          container.removeChild(renderer.domElement)
+        }
       }
     } catch (error) {
       console.error("ColorBends WebGL initialization failed:", error)
@@ -274,6 +275,9 @@ export default function ColorBends({
           // Ignore cleanup errors
         }
         rendererRef.current = null
+      }
+      return () => {
+        // Cleanup function for error case (no-op)
       }
     }
   }, [])
