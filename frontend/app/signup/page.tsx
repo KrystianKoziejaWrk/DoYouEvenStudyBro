@@ -172,7 +172,14 @@ function SignupPageContent() {
           }),
         })
 
-        const data = await response.json()
+        let data
+        try {
+          data = await response.json()
+        } catch (parseErr) {
+          const text = await response.text()
+          console.error("Backend returned non-JSON response:", text)
+          throw new Error("Signup failed. Please try again.")
+        }
 
         if (response.ok && data.access_token) {
           localStorage.setItem("access_token", data.access_token)
@@ -180,7 +187,9 @@ function SignupPageContent() {
           router.push(`/dashboard?signup_status=${status}`)
           return
         } else {
-          throw new Error(data.error || "Signup failed. Please try again.")
+          const errorMsg = data?.error || `Signup failed (${response.status}). Please try again.`
+          console.error("Signup error:", errorMsg, data)
+          throw new Error(errorMsg)
         }
       }
 

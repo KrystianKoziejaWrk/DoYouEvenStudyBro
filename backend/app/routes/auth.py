@@ -83,7 +83,8 @@ def signup():
         return jsonify({"error": "No JSON data provided"}), 400
     
     # Get Google OAuth data (in production, verify Google token here)
-    google_sub = data.get("sub")
+    # Support both "sub" and "google_sub" for compatibility
+    google_sub = data.get("google_sub") or data.get("sub")
     email = data.get("email")
     name = data.get("name", "")  # From Google profile
     

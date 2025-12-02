@@ -67,9 +67,10 @@ function SignupCallbackContent() {
           if (data.name) signupUrl.searchParams.set("name", data.name)
           if (data.google_sub) signupUrl.searchParams.set("google_sub", data.google_sub)
           signupUrl.searchParams.set("info", "account_not_found")
-          signupUrl.searchParams.set("error", data.error || "Please complete your signup")
+          // Don't set error param - just info so user can complete signup
           console.log("⚠️ No pending signup data, redirecting to signup with email:", data.email)
           router.push(signupUrl.toString())
+          return
         } else {
           // Error - redirect back to signup with error
           const errorMsg = data.error || `HTTP ${response.status}`
