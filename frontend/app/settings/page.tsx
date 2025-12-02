@@ -313,25 +313,25 @@ function SettingsPageContent() {
   return (
     <div className="min-h-screen bg-black text-white">
       <nav className="border-b border-white/10 bg-black/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">DYESB?</h1>
+        <div className="max-w-7xl mx-auto px-1 sm:px-3 md:px-6 py-1.5 sm:py-2 md:py-3 flex items-center justify-between gap-1 sm:gap-2">
+          <Link href="/" className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white">DYESB?</h1>
           </Link>
 
-          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 absolute left-1/2 -translate-x-1/2 overflow-x-auto scrollbar-hide">
-            <Link href="/dashboard" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
+          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-4 absolute left-1/2 -translate-x-1/2 overflow-x-auto scrollbar-hide max-w-[60vw] sm:max-w-none">
+            <Link href="/dashboard" className="text-[10px] sm:text-xs md:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Dashboard
             </Link>
-            <Link href="/tracker" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
+            <Link href="/tracker" className="text-[10px] sm:text-xs md:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Web Tracker
             </Link>
-            <Link href="/leaderboard" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
+            <Link href="/leaderboard" className="text-[10px] sm:text-xs md:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Leaderboard
             </Link>
-            <Link href="/friends" className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-1">
+            <Link href="/friends" className="text-[10px] sm:text-xs md:text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Friends
             </Link>
-            <Link href="/settings" className="text-xs sm:text-sm font-medium text-white transition-colors whitespace-nowrap px-1">
+            <Link href="/settings" className="text-[10px] sm:text-xs md:text-sm font-medium text-white transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Settings
             </Link>
           </div>
