@@ -105,8 +105,25 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     const load = async () => {
       setLoading(true)
       try {
-        const weekData = await getStatsWeekly({ start_date: weekStart.toISOString().split("T")[0] })
-        console.log("📅 Weekly data received:", weekData)
+        // If viewing someone else's profile, fetch their subjects first
+        if (username) {
+          try {
+            const profileSubs = await getSubjects(username)
+            setProfileSubjects(profileSubs || [])
+            console.log("📚 Loaded profile subjects:", profileSubs)
+          } catch (err) {
+            console.error("Failed to load profile subjects:", err)
+            setProfileSubjects([])
+          }
+        } else {
+          setProfileSubjects([]) // Clear when viewing own profile
+        }
+        
+        const weekData = await getStatsWeekly({ 
+          start_date: weekStart.toISOString().split("T")[0],
+          username: username // Pass username if viewing someone else's profile
+        })
+        console.log("📅 Weekly data received:", weekData, "for username:", username || "current user")
         
         if (!weekData || !weekData.days || !Array.isArray(weekData.days)) {
           console.error("❌ Invalid weekly data structure:", weekData)
@@ -123,9 +140,9 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           }
         })
 
-        // Filter by subject if needed
+        // Filter by subject if needed (only when viewing own profile)
         let sessionsToShow = allSessions
-        if (!showAllSubjects && selectedSubject) {
+        if (shouldFilterBySubject && selectedSubject) {
           const selectedSubjectObj = subjects.find(s => String(s.id) === String(selectedSubject))
           if (selectedSubjectObj) {
             sessionsToShow = allSessions.filter((session: any) => {
