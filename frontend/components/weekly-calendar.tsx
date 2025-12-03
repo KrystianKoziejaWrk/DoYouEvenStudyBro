@@ -523,17 +523,21 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             >
               {hours
                 .filter((h) => h >= 0 && h <= 23)
-                .map((hour) => (
-                  <div
-                    key={hour}
-                    className="absolute left-0 right-0 border-t border-white/5"
-                    style={{ top: `${(hour / 24) * 100 * zoomLevel}%` }}
-                  >
-                    <span className="absolute -left-0 -top-2 text-[10px] text-gray-500 w-10 text-right pr-2">
-                      {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-                    </span>
-                  </div>
-                ))}
+                .map((hour) => {
+                  const containerHeight = 800 * zoomLevel
+                  const hourPosition = (hour / 24) * containerHeight
+                  return (
+                    <div
+                      key={hour}
+                      className="absolute left-0 right-0 border-t border-white/5"
+                      style={{ top: `${hourPosition}px` }}
+                    >
+                      <span className="absolute -left-0 -top-2 text-[10px] text-gray-500 w-10 text-right pr-2">
+                        {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
+                      </span>
+                    </div>
+                  )
+                })}
 
               <div className="grid grid-cols-8 ml-10" style={{ height: `${800 * zoomLevel}px` }}>
                 <div />
@@ -541,16 +545,15 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                 <div key={dayIndex} className="relative border-l border-white/10">
                   {day.blocks.map((block, blockIndex) => {
                     // Calculate position for 24-hour view (0-23) with zoom
-                    const startPercent = (block.startHour / 24) * 100
-                    const heightPercent = (block.duration / 24) * 100
+                    const containerHeight = 800 * zoomLevel
+                    const startPositionPx = (block.startHour / 24) * containerHeight
+                    const durationPx = (block.duration / 24) * containerHeight
                     
                     // Calculate minimum height based on actual duration
                     // For very short sessions (< 1 minute), use a small but visible height
-                    // For longer sessions, use the calculated percentage
-                    const minHeightPx = block.duration < (1/60) ? 2 : 0 // 2px for sessions < 1 minute, otherwise use calculated height
-                    const containerHeight = 800 * zoomLevel
-                    const calculatedHeightPx = (heightPercent / 100) * containerHeight
-                    const finalHeightPx = Math.max(minHeightPx, calculatedHeightPx)
+                    // For longer sessions, use the calculated height
+                    const minHeightPx = block.duration < (1/60) ? 2 * zoomLevel : 0 // Scale min height with zoom
+                    const finalHeightPx = Math.max(minHeightPx, durationPx)
 
                     return (
                       <TooltipProvider key={blockIndex}>
@@ -559,7 +562,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                             <div
                               className="absolute left-1 right-1 rounded-md px-1 py-0.5 text-[10px] text-white font-medium overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                               style={{
-                                top: `${startPercent}%`,
+                                top: `${startPositionPx}px`,
                                 height: `${finalHeightPx}px`,
                                 backgroundColor: block.color,
                                 minHeight: minHeightPx > 0 ? `${minHeightPx}px` : undefined,
