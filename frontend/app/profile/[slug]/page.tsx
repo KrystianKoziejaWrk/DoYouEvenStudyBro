@@ -380,13 +380,13 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
             {/* Profile Header Card */}
             <Card className="p-4 bg-black border-white/10 mb-6">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">
                       {(user.display_name || user.username || "U").charAt(0).toUpperCase()}
                     </span>
-                  </div>
-                  <div>
+                </div>
+                <div>
                     <h1 className="text-2xl font-bold text-white">{user.display_name || user.username}</h1>
                     <p className="text-gray-400">@{user.username}</p>
                   </div>
@@ -648,190 +648,9 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
             </Card>
           </div>
 
-          {/* Weekly Calendar - matching WeeklyCalendar component */}
+          {/* Weekly Calendar - using same component as dashboard */}
           <div className="animate-in fade-in-50 duration-700">
-            <Card className="p-6 bg-black border-white/10">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-semibold text-white">Weekly Overview</h3>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" disabled>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm text-gray-400 w-32 text-center">
-                      {weeklyData?.weekStart
-                        ? `${new Date(weeklyData.weekStart).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })} - ${new Date(
-                            new Date(weeklyData.weekStart).getTime() + 6 * 24 * 60 * 60 * 1000
-                          ).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                        : "Loading..."}
-                    </span>
-                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" disabled>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-white" />
-                    <div>
-                      <p className="text-xs text-gray-400">Total</p>
-                      <p className="font-semibold text-white">{Math.round(totalMinutes)}m</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-white" />
-                    <div>
-                      <p className="text-xs text-gray-400">Avg Session</p>
-                      <p className="font-semibold text-white">
-                        {weeklyData && weeklyData.sessionsCount > 0
-                          ? `${Math.floor((weeklyData.weeklyTotalMinutes / weeklyData.sessionsCount) / 60)}h ${Math.floor((weeklyData.weeklyTotalMinutes / weeklyData.sessionsCount) % 60)}m`
-                          : "0h 0m"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="overflow-x-auto">
-                <div className="min-w-[800px]">
-                  <div className="grid grid-cols-8 gap-1 mb-2">
-                    <div className="w-12" />
-              {weeklyData?.days.map((d: any, i: number) => {
-                const dateObj = new Date(d.date)
-                const dayName = days[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1]
-                // Calculate filtered total minutes if subject filter is active
-                const dayTotalMinutes = !showAllSubjects && currentSubjectId !== undefined
-                  ? (d.sessions || []).filter((s: any) => s.subject_id === currentSubjectId).reduce((sum: number, s: any) => sum + (s.durationMinutes || 0), 0)
-                  : d.totalMinutes
-                return (
-                  <div key={i} className="text-center">
-                    <p className="text-sm font-medium text-white">{dayName}</p>
-                    <p className="text-xs text-gray-400">
-                      {dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
-                    <p className="text-xs text-white mt-1">{Math.floor(dayTotalMinutes / 60)}h</p>
-                      </div>
-                )
-              })}
-                  </div>
-
-                  <div
-                    className="relative border border-white/10 rounded-lg overflow-hidden"
-                    style={{ height: "400px" }}
-                  >
-                    {hours.map((hour) => (
-                      <div
-                        key={hour}
-                        className="absolute left-0 right-0 border-t border-white/5"
-                        style={{ top: `${((hour - 6) / 18) * 100}%` }}
-                      >
-                        <span className="absolute -left-0 -top-2 text-[10px] text-gray-500 w-10 text-right pr-2">
-                          {hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-                        </span>
-                      </div>
-                    ))}
-
-                    <div className="grid grid-cols-8 h-full ml-10">
-                      <div />
-                      {weeklyData?.days.map((day: any, dayIndex: number) => {
-                        // Filter sessions by selected subject if filtering is active
-                        let sessionsToShow = day.sessions || []
-                        if (!showAllSubjects && currentSubjectId !== undefined) {
-                          sessionsToShow = sessionsToShow.filter((session: any) => {
-                            return session.subject_id === currentSubjectId
-                          })
-                        }
-                        
-                        return (
-                        <div key={dayIndex} className="relative border-l border-white/10">
-                          {sessionsToShow.map((session: any, blockIndex: number) => {
-                            // Parse UTC timestamps and convert to local timezone (same as dashboard)
-                            let startStr = session.started_at
-                            let endStr = session.ended_at
-                            
-                            if (!startStr.includes('Z') && !startStr.includes('+') && !startStr.includes('-', 10)) {
-                              startStr = startStr + 'Z'
-                            }
-                            if (!endStr.includes('Z') && !endStr.includes('+') && !endStr.includes('-', 10)) {
-                              endStr = endStr + 'Z'
-                            }
-                            
-                            const startDateUTC = new Date(startStr)
-                            const endDateUTC = new Date(endStr)
-                            
-                            if (isNaN(startDateUTC.getTime()) || isNaN(endDateUTC.getTime())) {
-                              console.error("❌ Invalid date:", { startStr, endStr })
-                              return null
-                            }
-                            
-                            // Convert UTC to selected timezone
-                            const formatterWithSeconds = new Intl.DateTimeFormat("en-US", {
-                              timeZone: timezone,
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                              hour12: false
-                            })
-                            
-                            const startParts = formatterWithSeconds.formatToParts(startDateUTC)
-                            const endParts = formatterWithSeconds.formatToParts(endDateUTC)
-                            
-                            const startHour = parseInt(startParts.find(p => p.type === "hour")?.value || "0", 10)
-                            const startMin = parseInt(startParts.find(p => p.type === "minute")?.value || "0", 10)
-                            const startSec = parseInt(startParts.find(p => p.type === "second")?.value || "0", 10)
-                            
-                            const startHourDecimal = startHour + startMin / 60 + startSec / 3600
-                            const durationHours = session.durationMinutes / 60
-                            
-                            // Calculate position for 6 AM - 12 AM view (18 hours)
-                            const startPercent = ((startHourDecimal - 6) / 18) * 100
-                            const heightPercent = (durationHours / 18) * 100
-                            
-                            // Calculate minimum height based on actual duration
-                            const minHeightPx = durationHours < (1/60) ? 2 : 0
-                            const calculatedHeightPx = (heightPercent / 100) * 400 // 400px container height
-                            const finalHeightPx = Math.max(minHeightPx, calculatedHeightPx)
-                            
-                            // Get subject color from session data
-                            const subjectColor = session.color || "#3b82f6"
-                            
-                            // Format times for display
-                            const startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')}`
-                            
-                            return (
-                              <div
-                                key={blockIndex}
-                                className="absolute left-1 right-1 rounded-md px-1 py-0.5 text-[10px] text-white font-medium overflow-hidden"
-                                style={{
-                                  top: `${startPercent}%`,
-                                  height: `${finalHeightPx}px`,
-                                  backgroundColor: subjectColor,
-                                  minHeight: minHeightPx > 0 ? `${minHeightPx}px` : undefined,
-                                }}
-                                title={`${session.subject}: ${startTimeStr} (${Math.round(session.durationMinutes)}m)`}
-                              >
-                                {finalHeightPx >= 20 && (
-                                  <>
-                                    <div className="truncate">{session.subject}</div>
-                                    <div className="text-white/70">{Math.round(session.durationMinutes)}m</div>
-                                  </>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
+            <WeeklyCalendar username={username} />
           </div>
 
           {/* Last 30 Days Trend */}

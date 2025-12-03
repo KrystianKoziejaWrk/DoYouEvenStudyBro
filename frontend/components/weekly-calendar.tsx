@@ -26,10 +26,16 @@ interface DaySchedule {
   blocks: FocusBlock[]
 }
 
-export default function WeeklyCalendar() {
+interface WeeklyCalendarProps {
+  username?: string // Optional username for viewing other users' profiles
+}
+
+export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const [data, setData] = useState<DaySchedule[]>([])
   const [loading, setLoading] = useState(true)
   const { selectedSubject, showAllSubjects, subjects, timezone } = useFilterStore()
+  const [zoomLevel, setZoomLevel] = useState(1) // 1 = normal, 2 = 2x zoom, etc.
+  const [scrollPosition, setScrollPosition] = useState(0) // Scroll position in pixels
   
   // Calculate Sunday in user's timezone, not UTC
   const getSundayInTimezone = (date: Date): Date => {
@@ -465,27 +471,76 @@ export default function WeeklyCalendar() {
             )}
           </div>
 
-          <div className="relative border border-white/10 rounded-lg overflow-hidden" style={{ height: "800px" }}>
-            {hours
-              .filter((h) => h >= 0 && h <= 23)
-              .map((hour) => (
-                <div
-                  key={hour}
-                  className="absolute left-0 right-0 border-t border-white/5"
-                  style={{ top: `${(hour / 24) * 100}%` }}
-                >
-                  <span className="absolute -left-0 -top-2 text-[10px] text-gray-500 w-10 text-right pr-2">
-                    {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-                  </span>
-                </div>
-              ))}
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-2 mb-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))}
+              className="text-white hover:bg-white/10"
+              disabled={zoomLevel <= 0.5}
+            >
+              Zoom Out
+            </Button>
+            <span className="text-xs text-gray-400">{Math.round(zoomLevel * 100)}%</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))}
+              className="text-white hover:bg-white/10"
+              disabled={zoomLevel >= 3}
+            >
+              Zoom In
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setZoomLevel(1)
+                setScrollPosition(0)
+              }}
+              className="text-white hover:bg-white/10"
+            >
+              Reset
+            </Button>
+          </div>
 
-            <div className="grid grid-cols-8 h-full ml-10">
+          {/* Scrollable container with zoom */}
+          <div 
+            className="relative border border-white/10 rounded-lg overflow-auto scrollbar-hide"
+            style={{ 
+              height: "800px",
+              maxHeight: "800px"
+            }}
+            onScroll={(e) => setScrollPosition(e.currentTarget.scrollTop)}
+          >
+            <div 
+              className="relative"
+              style={{ 
+                height: `${800 * zoomLevel}px`,
+                minHeight: `${800 * zoomLevel}px`
+              }}
+            >
+              {hours
+                .filter((h) => h >= 0 && h <= 23)
+                .map((hour) => (
+                  <div
+                    key={hour}
+                    className="absolute left-0 right-0 border-t border-white/5"
+                    style={{ top: `${(hour / 24) * 100 * zoomLevel}%` }}
+                  >
+                    <span className="absolute -left-0 -top-2 text-[10px] text-gray-500 w-10 text-right pr-2">
+                      {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
+                    </span>
+                  </div>
+                ))}
+
+              <div className="grid grid-cols-8 h-full ml-10" style={{ height: `${800 * zoomLevel}px` }}>
               <div />
               {data.length > 0 ? data.map((day, dayIndex) => (
                 <div key={dayIndex} className="relative border-l border-white/10">
                   {day.blocks.map((block, blockIndex) => {
-                    // Calculate position for 24-hour view (0-23)
+                    // Calculate position for 24-hour view (0-23) with zoom
                     const startPercent = (block.startHour / 24) * 100
                     const heightPercent = (block.duration / 24) * 100
                     
@@ -493,7 +548,8 @@ export default function WeeklyCalendar() {
                     // For very short sessions (< 1 minute), use a small but visible height
                     // For longer sessions, use the calculated percentage
                     const minHeightPx = block.duration < (1/60) ? 2 : 0 // 2px for sessions < 1 minute, otherwise use calculated height
-                    const calculatedHeightPx = (heightPercent / 100) * 800 // 800px is the container height
+                    const containerHeight = 800 * zoomLevel
+                    const calculatedHeightPx = (heightPercent / 100) * containerHeight
                     const finalHeightPx = Math.max(minHeightPx, calculatedHeightPx)
 
                     return (
