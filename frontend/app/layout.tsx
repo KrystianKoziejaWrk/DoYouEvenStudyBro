@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: "Focus Tracker - Analytics Dashboard",
   description: "Track your focus sessions and visualize progress",
   generator: "v0.app",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
 }
 
 export default function RootLayout({
