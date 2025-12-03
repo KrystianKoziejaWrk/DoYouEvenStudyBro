@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/lib/auth-provider"
 import { useFilterStore } from "@/lib/store"
 import Last30Line from "@/components/last-30-line"
+import WeeklyCalendar from "@/components/weekly-calendar"
 import { minutesToHhMm } from "@/lib/utils"
 import { toast } from "sonner"
 
