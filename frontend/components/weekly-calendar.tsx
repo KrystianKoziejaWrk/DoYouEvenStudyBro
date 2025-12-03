@@ -264,6 +264,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => `${i}(${days[Number(i)]}): ${sessionsByDayIndex[Number(i)].length}`).join(", "))
 
         // Create schedule for the week (Sunday to Saturday)
+        // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
+        const currentEffectiveSubjects = username ? profileSubjects : subjects
+        const subjectMap = new Map(currentEffectiveSubjects.map((s) => [s.name, s]))
+        console.log("🎨 Subject map:", Array.from(subjectMap.entries()).map(([name, sub]) => `${name}: ${sub.color}`).join(", "))
+        
         const schedule: DaySchedule[] = []
         for (let i = 0; i < 7; i++) {
           // Get the date string in user's timezone for this column (already calculated)
