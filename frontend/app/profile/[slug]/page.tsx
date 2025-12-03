@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Flame, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Clock, Target, Loader2 } from "lucide-react"
+import { ArrowLeft, Flame, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Clock, Target, Loader2, UserPlus, Check, Clock as ClockIcon } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -16,6 +16,11 @@ import {
   getStatsDaily,
   getStatsHeatmap,
   getSubjects,
+  sendFriendRequest,
+  getFriends,
+  getOutgoingRequests,
+  getIncomingRequests,
+  acceptFriendRequest,
 } from "@/lib/api"
 import { useAuth } from "@/lib/auth-provider"
 import { useFilterStore } from "@/lib/store"
@@ -331,16 +336,112 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
 
             {/* Profile Header Card */}
             <Card className="p-4 bg-black border-white/10 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
-                    {(user.display_name || user.username || "U").charAt(0).toUpperCase()}
-                  </span>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-white">
+                      {(user.display_name || user.username || "U").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-white">{user.display_name || user.username}</h1>
+                    <p className="text-gray-400">@{user.username}</p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">{user.display_name || user.username}</h1>
-                  <p className="text-gray-400">@{user.username}</p>
-                </div>
+                {/* Add Friend Button - only show if viewing someone else's profile */}
+                {currentUser && user && currentUser.id !== user.id && (
+                  <div>
+                    {friendStatus === "none" && (
+                      <Button
+                        onClick={async () => {
+                          setAddingFriend(true)
+                          try {
+                            await sendFriendRequest(username)
+                            setFriendStatus("pending_outgoing")
+                            // Show success toast
+                            const event = new CustomEvent("toast", {
+                              detail: { title: "Friend request sent", description: `Sent friend request to @${username}` },
+                            })
+                            window.dispatchEvent(event)
+                          } catch (err: any) {
+                            console.error("Failed to send friend request:", err)
+                            const event = new CustomEvent("toast", {
+                              detail: { title: "Error", description: err.message || "Failed to send friend request" },
+                            })
+                            window.dispatchEvent(event)
+                          } finally {
+                            setAddingFriend(false)
+                          }
+                        }}
+                        disabled={addingFriend}
+                        className="bg-white text-black hover:bg-gray-200"
+                      >
+                        {addingFriend ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Add Friend
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {friendStatus === "pending_outgoing" && (
+                      <Button disabled className="bg-gray-600 text-white cursor-not-allowed">
+                        <ClockIcon className="w-4 h-4 mr-2" />
+                        Request Sent
+                      </Button>
+                    )}
+                    {friendStatus === "pending_incoming" && (
+                      <Button
+                        onClick={async () => {
+                          if (pendingRequestId) {
+                            setAddingFriend(true)
+                            try {
+                              await acceptFriendRequest(pendingRequestId)
+                              setFriendStatus("friends")
+                              const event = new CustomEvent("toast", {
+                                detail: { title: "Friend request accepted", description: `You're now friends with @${username}` },
+                              })
+                              window.dispatchEvent(event)
+                            } catch (err: any) {
+                              console.error("Failed to accept friend request:", err)
+                              const event = new CustomEvent("toast", {
+                                detail: { title: "Error", description: err.message || "Failed to accept friend request" },
+                              })
+                              window.dispatchEvent(event)
+                            } finally {
+                              setAddingFriend(false)
+                            }
+                          }
+                        }}
+                        disabled={addingFriend}
+                        className="bg-green-600 text-white hover:bg-green-700"
+                      >
+                        {addingFriend ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Accepting...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Accept Request
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {friendStatus === "friends" && (
+                      <Button disabled className="bg-green-600 text-white cursor-not-allowed">
+                        <Check className="w-4 h-4 mr-2" />
+                        Friends
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
