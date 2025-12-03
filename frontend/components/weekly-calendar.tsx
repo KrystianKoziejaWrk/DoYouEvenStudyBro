@@ -535,9 +535,9 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                   </div>
                 ))}
 
-              <div className="grid grid-cols-8 h-full ml-10" style={{ height: `${800 * zoomLevel}px` }}>
-              <div />
-              {data.length > 0 ? data.map((day, dayIndex) => (
+              <div className="grid grid-cols-8 ml-10" style={{ height: `${800 * zoomLevel}px` }}>
+                <div />
+                {data.length > 0 ? data.map((day, dayIndex) => (
                 <div key={dayIndex} className="relative border-l border-white/10">
                   {day.blocks.map((block, blockIndex) => {
                     // Calculate position for 24-hour view (0-23) with zoom
@@ -593,6 +593,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                   <div key={dayIndex} className="relative border-l border-white/10" />
                 ))
               )}
+              </div>
             </div>
           </div>
         </div>
