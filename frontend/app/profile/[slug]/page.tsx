@@ -64,6 +64,9 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
   const [heatmapData, setHeatmapData] = useState<any[]>([])
   const [friendSubjects, setFriendSubjects] = useState<any[]>([]) // Store friend's subjects for filtering
   const [currentSubjectId, setCurrentSubjectId] = useState<number | undefined>(undefined) // Track current filter
+  const [friendStatus, setFriendStatus] = useState<"none" | "pending_outgoing" | "pending_incoming" | "friends">("none")
+  const [pendingRequestId, setPendingRequestId] = useState<number | null>(null)
+  const [addingFriend, setAddingFriend] = useState(false)
 
   useEffect(() => {
     if (!username) return
@@ -222,6 +225,45 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
         setWeeklyData(weeklyDataResult)
         setDailyData(dailyDataResult)
         setHeatmapData(heatmapDataResult)
+
+        // Check friend status if viewing someone else's profile
+        if (currentUser && userData && currentUser.id !== userData.id) {
+          try {
+            const [friendsList, outgoingRequests, incomingRequests] = await Promise.all([
+              getFriends().catch(() => []),
+              getOutgoingRequests().catch(() => []),
+              getIncomingRequests().catch(() => []),
+            ])
+
+            // Check if already friends
+            const isFriend = friendsList.some((f: any) => f.user.id === userData.id || f.user.username === username)
+            if (isFriend) {
+              setFriendStatus("friends")
+            } else {
+              // Check if there's a pending outgoing request
+              const outgoingRequest = outgoingRequests.find((r: any) => r.addressee?.id === userData.id || r.addressee?.username === username)
+              if (outgoingRequest) {
+                setFriendStatus("pending_outgoing")
+                setPendingRequestId(outgoingRequest.id)
+              } else {
+                // Check if there's a pending incoming request (they sent us one)
+                const incomingRequest = incomingRequests.find((r: any) => r.requester?.id === userData.id || r.requester?.username === username)
+                if (incomingRequest) {
+                  setFriendStatus("pending_incoming")
+                  setPendingRequestId(incomingRequest.id)
+                } else {
+                  setFriendStatus("none")
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to check friend status:", err)
+            setFriendStatus("none")
+          }
+        } else if (currentUser && userData && currentUser.id === userData.id) {
+          // Viewing own profile
+          setFriendStatus("none")
+        }
       } catch (err) {
         console.error("❌ Failed to load profile data:", err)
       } finally {
@@ -229,7 +271,7 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
       }
     }
     loadData()
-  }, [username, selectedSubject, subjects, showAllSubjects, timezone])
+  }, [username, selectedSubject, subjects, showAllSubjects, timezone, currentUser])
 
   if (!username || loading) {
     return (
