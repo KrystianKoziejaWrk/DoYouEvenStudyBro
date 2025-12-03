@@ -103,11 +103,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       setLoading(true)
       try {
         // If viewing someone else's profile, fetch their subjects first
+        let fetchedProfileSubjects: any[] = []
         if (username) {
           try {
-            const profileSubs = await getSubjects(username)
-            setProfileSubjects(profileSubs || [])
-            console.log("📚 Loaded profile subjects:", profileSubs)
+            fetchedProfileSubjects = await getSubjects(username)
+            setProfileSubjects(fetchedProfileSubjects || [])
+            console.log("📚 Loaded profile subjects:", fetchedProfileSubjects)
           } catch (err) {
             console.error("Failed to load profile subjects:", err)
             setProfileSubjects([])
@@ -265,9 +266,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         // Create schedule for the week (Sunday to Saturday)
         // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
-        const currentEffectiveSubjects = username ? profileSubjects : subjects
+        // Use freshly fetched subjects if available, otherwise fall back to state
+        const currentEffectiveSubjects = username ? (fetchedProfileSubjects.length > 0 ? fetchedProfileSubjects : profileSubjects) : subjects
         const subjectMap = new Map(currentEffectiveSubjects.map((s) => [s.name, s]))
-        console.log("🎨 Subject map:", Array.from(subjectMap.entries()).map(([name, sub]) => `${name}: ${sub.color}`).join(", "))
+        console.log("🎨 Subject map (using", username ? "profile" : "viewer", "subjects):", Array.from(subjectMap.entries()).map(([name, sub]) => `${name}: ${sub.color}`).join(", "))
         
         const schedule: DaySchedule[] = []
         for (let i = 0; i < 7; i++) {
