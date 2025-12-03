@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { getStatsWeekly } from "@/lib/api"
+import { getStatsWeekly, getSubjects } from "@/lib/api"
 import { getMonday, minutesToHhMm } from "@/lib/utils"
 import { useFilterStore } from "@/lib/store"
 
