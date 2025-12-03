@@ -351,7 +351,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       }
     }
     load()
-  }, [weekStart, subjects, selectedSubject, showAllSubjects, timezone])
+  }, [weekStart, subjects, selectedSubject, showAllSubjects, timezone, username])
 
   const previousWeek = () => {
     const d = new Date(weekStart)
