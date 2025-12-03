@@ -53,13 +53,15 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
     if (isNetworkError) {
       console.error(`❌ Network Error: Failed to connect to ${API_BASE}${path}`)
       console.error("Error details:", err)
+      console.error("Full URL attempted:", `${API_BASE}${path}`)
+      console.error("API_BASE value:", API_BASE)
       console.error("🔧 Troubleshooting:")
-      console.error("1. Check if backend is running: curl http://127.0.0.1:5001/api/ping")
-      console.error("2. Start backend: cd backend && source venv/bin/activate && python manage.py")
+      console.error("1. Check if backend is running: curl https://doyouevenstudybro-9e34cda89f7f.herokuapp.com/api/ping")
+      console.error("2. Check CORS configuration in backend")
       console.error("3. Check browser console for CORS errors")
-      console.error("4. Make sure you're accessing frontend from http://localhost:3000 (not 127.0.0.1)")
+      console.error("4. Verify NEXT_PUBLIC_API_URL env var is set correctly")
       
-      throw new Error(`Cannot connect to backend at ${API_BASE}. Make sure Flask is running.`)
+      throw new Error(`Cannot connect to backend at ${API_BASE}${path}. Check console for details.`)
     }
     
     // Re-throw other errors
@@ -203,7 +205,8 @@ export async function updateCurrentUser(patch: {
 }
 
 export async function getUserByUsername(username: string) {
-  return apiFetch(`/users/${username}`)
+  // URL encode the username to handle special characters
+  return apiFetch(`/users/${encodeURIComponent(username)}`)
 }
 
 export async function getUserCount() {
