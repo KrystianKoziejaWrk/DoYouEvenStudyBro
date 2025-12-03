@@ -26,6 +26,7 @@ import { useAuth } from "@/lib/auth-provider"
 import { useFilterStore } from "@/lib/store"
 import Last30Line from "@/components/last-30-line"
 import { minutesToHhMm } from "@/lib/utils"
+import { toast } from "sonner"
 
 const RANKS = [
   { name: "Baus", minHours: 0, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2002-00-29-20am.png" },
@@ -400,17 +401,14 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                           try {
                             await sendFriendRequest(username)
                             setFriendStatus("pending_outgoing")
-                            // Show success toast
-                            const event = new CustomEvent("toast", {
-                              detail: { title: "Friend request sent", description: `Sent friend request to @${username}` },
+                            toast.success("Friend request sent", {
+                              description: `Sent friend request to @${username}`,
                             })
-                            window.dispatchEvent(event)
                           } catch (err: any) {
                             console.error("Failed to send friend request:", err)
-                            const event = new CustomEvent("toast", {
-                              detail: { title: "Error", description: err.message || "Failed to send friend request" },
+                            toast.error("Error", {
+                              description: err.message || "Failed to send friend request",
                             })
-                            window.dispatchEvent(event)
                           } finally {
                             setAddingFriend(false)
                           }
@@ -445,16 +443,14 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                             try {
                               await acceptFriendRequest(pendingRequestId)
                               setFriendStatus("friends")
-                              const event = new CustomEvent("toast", {
-                                detail: { title: "Friend request accepted", description: `You're now friends with @${username}` },
+                              toast.success("Friend request accepted", {
+                                description: `You're now friends with @${username}`,
                               })
-                              window.dispatchEvent(event)
                             } catch (err: any) {
                               console.error("Failed to accept friend request:", err)
-                              const event = new CustomEvent("toast", {
-                                detail: { title: "Error", description: err.message || "Failed to accept friend request" },
+                              toast.error("Error", {
+                                description: err.message || "Failed to accept friend request",
                               })
-                              window.dispatchEvent(event)
                             } finally {
                               setAddingFriend(false)
                             }
