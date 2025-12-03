@@ -502,7 +502,6 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                   </div>
                   <div>
                     <p className="text-lg font-bold text-white">{rankInfo.current.name}</p>
-                    <p className="text-xs text-gray-400">{Math.round(totalMinutes)}m this week</p>
                     {rankInfo.next && (
                       <div className="flex items-center gap-2 mt-1">
                         <Progress value={rankInfo.progressToNext} className="h-1.5 w-20 bg-gray-800" />

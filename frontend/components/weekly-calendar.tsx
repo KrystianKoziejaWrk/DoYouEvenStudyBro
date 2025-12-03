@@ -98,9 +98,6 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-  // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
-  const subjectMap = new Map(effectiveSubjects.map((s) => [s.name, s]))
-
   useEffect(() => {
     const load = async () => {
       setLoading(true)

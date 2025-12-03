@@ -93,11 +93,11 @@ export default function TopRow() {
   useEffect(() => {
     const load = async () => {
       try {
-        // Get current week dates (Sunday-Saturday, matching weekly calendar)
+        // Get current week dates
         const today = new Date()
-        const daysSinceSunday = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+        const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1
         const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - daysSinceSunday)
+        weekStart.setDate(today.getDate() - daysSinceMonday)
         const weekEnd = new Date(today)
 
         const startDate = weekStart.toISOString().split("T")[0]
@@ -116,12 +116,7 @@ export default function TopRow() {
           streakDays: summary.streakDays || 0,
         })
         
-        console.log("📊 Subject stats from API:", subjectData)
         setSubjectStats(subjectData.map((s: any) => ({
-          subject: s.subject,
-          minutes: Math.round(s.minutes || 0),
-        })))
-        console.log("📊 Processed subject stats:", subjectData.map((s: any) => ({
           subject: s.subject,
           minutes: Math.round(s.minutes || 0),
         })))
@@ -151,17 +146,12 @@ export default function TopRow() {
   const rankInfo = getRankByHours(weeklyHours)
 
   const subjectMap = new Map(subjects.map((s) => [s.name, s]))
-  // Filter out subjects with 0 minutes and sort by minutes descending
-  const pieData = subjectStats
-    .filter((s) => s.minutes > 0) // Only show subjects with time
-    .map((s) => ({
-      name: s.subject,
-      value: s.minutes,
-      color: subjectMap.get(s.subject)?.color || "#3b82f6",
-    }))
-    .sort((a, b) => b.value - a.value) // Sort by minutes descending
+  const pieData = subjectStats.map((s) => ({
+    name: s.subject,
+    value: s.minutes,
+    color: subjectMap.get(s.subject)?.color || "#3b82f6",
+  }))
 
-  console.log("📊 Pie data for breakdown:", pieData)
   const totalMinutes = pieData.reduce((sum, d) => sum + d.value, 0)
 
   // TODO: Calculate week change from previous week
@@ -188,7 +178,6 @@ export default function TopRow() {
           </div>
           <div>
             <p className="text-lg font-bold text-white">{rankInfo.current.name}</p>
-            <p className="text-xs text-gray-400">{minutesToHhMm(stats?.totalMinutes || 0)}/week</p>
             {rankInfo.next && (
               <div className="flex items-center gap-2 mt-1">
                 <Progress value={rankInfo.progressToNext} className="h-1.5 w-20 bg-gray-800" />
