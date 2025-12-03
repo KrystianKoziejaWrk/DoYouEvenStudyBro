@@ -288,23 +288,17 @@ export default function ColorBends({
     }
   }, [mounted, speed, scale, frequency, warpStrength, mouseInfluence, parallax, noise, transparent, colors])
 
-  // Fallback gradient background if WebGL fails (only after mount to prevent hydration mismatch)
-  if (mounted && webglError) {
-    const gradientColors = colors.length > 0 ? colors : ["#ff5c7a", "#ff9f43", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ee5a24"]
-    const gradientStops = gradientColors.map((color, i) => `${color} ${(i / (gradientColors.length - 1)) * 100}%`).join(", ")
-    
-    return (
-      <div
-        ref={containerRef}
-        className={`w-full h-full relative overflow-hidden ${className}`}
-        style={{
-          ...style,
-          background: `linear-gradient(135deg, ${gradientStops})`,
-          opacity: transparent ? 0.3 : 1,
-        }}
-      />
-    )
-  }
+  // Calculate fallback gradient (same on server and client to prevent hydration mismatch)
+  const gradientColors = colors.length > 0 ? colors : ["#ff5c7a", "#ff9f43", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ee5a24"]
+  const gradientStops = gradientColors.map((color, i) => `${color} ${(i / (gradientColors.length - 1)) * 100}%`).join(", ")
+  
+  // Use fallback gradient if WebGL failed, otherwise use WebGL canvas
+  // Always render the same structure to prevent hydration mismatch
+  const fallbackStyle = mounted && webglError ? {
+    ...style,
+    background: `linear-gradient(135deg, ${gradientStops})`,
+    opacity: transparent ? 0.3 : 1,
+  } : style
 
   useEffect(() => {
     const material = materialRef.current
@@ -372,5 +366,12 @@ export default function ColorBends({
     }
   }, [])
 
-  return <div ref={containerRef} className={`w-full h-full relative overflow-hidden ${className}`} style={style} />
+  return (
+    <div 
+      ref={containerRef} 
+      className={`w-full h-full relative overflow-hidden ${className}`} 
+      style={fallbackStyle}
+      suppressHydrationWarning
+    />
+  )
 }
