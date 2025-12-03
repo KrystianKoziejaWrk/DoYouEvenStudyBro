@@ -34,8 +34,14 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const [data, setData] = useState<DaySchedule[]>([])
   const [loading, setLoading] = useState(true)
   const { selectedSubject, showAllSubjects, subjects, timezone } = useFilterStore()
+  const [profileSubjects, setProfileSubjects] = useState<any[]>([]) // Subjects for the profile being viewed
   const [zoomLevel, setZoomLevel] = useState(1) // 1 = normal, 2 = 2x zoom, etc.
   const [scrollPosition, setScrollPosition] = useState(0) // Scroll position in pixels
+  
+  // When viewing someone else's profile, use their subjects; otherwise use viewer's subjects
+  const effectiveSubjects = username ? profileSubjects : subjects
+  // When viewing someone else's profile, don't apply viewer's filters
+  const shouldFilterBySubject = !username && !showAllSubjects && selectedSubject !== undefined
   
   // Calculate Sunday in user's timezone, not UTC
   const getSundayInTimezone = (date: Date): Date => {
@@ -92,7 +98,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-  const subjectMap = new Map(subjects.map((s) => [s.name, s]))
+  // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
+  const subjectMap = new Map(effectiveSubjects.map((s) => [s.name, s]))
 
   useEffect(() => {
     const load = async () => {
