@@ -77,7 +77,7 @@ export default function Last30Line({ username }: { username?: string } = {}) {
         <div className="bg-gray-900 border border-white/10 rounded-lg p-3 shadow-lg">
           <p className="text-white font-semibold">{label}</p>
           <p className="text-white">
-            {data.hours.toFixed(2)} hours
+            {minutesToHhMm(data.minutes)}
           </p>
         </div>
       )
@@ -109,7 +109,11 @@ export default function Last30Line({ username }: { username?: string } = {}) {
             />
             <YAxis 
               tick={{ fill: "#9ca3af", fontSize: 10 }}
-              tickFormatter={(value) => `${value.toFixed(1)}h`}
+              tickFormatter={(value) => {
+                const hours = Math.floor(value)
+                const minutes = Math.round((value - hours) * 60)
+                return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line 

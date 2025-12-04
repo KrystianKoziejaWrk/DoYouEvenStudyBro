@@ -529,7 +529,7 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                 {/* Weekly Total */}
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{Math.round(totalMinutes)}m</p>
+                    <p className="text-2xl font-bold text-white">{minutesToHhMm(Math.round(totalMinutes))}</p>
                     <p className="text-xs text-gray-400">this week</p>
                   </div>
                   {weeklyData && weeklyData.prevWeekTotalMinutes && weeklyData.prevWeekTotalMinutes > 0 && (
