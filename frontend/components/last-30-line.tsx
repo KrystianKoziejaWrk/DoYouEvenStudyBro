@@ -54,14 +54,12 @@ export default function Last30Line({ username }: { username?: string } = {}) {
   const barColor = showAllSubjects ? "#ffffff" : (selectedSubjectData?.color || "#ffffff")
 
   // Format data for Recharts - convert minutes to hours and format dates in user's timezone
+  // Parse date string directly (YYYY-MM-DD) to avoid timezone offset issues
   const chartData = data.map((d) => {
-    // Parse the date string and format it in the user's timezone
-    const dateObj = new Date(d.date + "T00:00:00Z") // Treat as UTC
-    const formattedDate = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      month: "short",
-      day: "numeric"
-    }).format(dateObj)
+    // Parse the date string directly (YYYY-MM-DD) without timezone conversion
+    const [year, month, day] = d.date.split('-').map(Number)
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const formattedDate = `${monthNames[month - 1]} ${day}`
     
     return {
       date: formattedDate,
