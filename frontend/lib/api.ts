@@ -298,12 +298,13 @@ export async function getStatsBySubject(params?: { username?: string; start_date
   return apiFetch(`/stats/by-subject${queryString ? `?${queryString}` : ""}`)
 }
 
-export async function getStatsDaily(params?: { username?: string; start_date?: string; end_date?: string; subject_id?: number | null }) {
+export async function getStatsDaily(params?: { username?: string; start_date?: string; end_date?: string; subject_id?: number | null; timezone?: string }) {
   const query = new URLSearchParams()
   if (params?.username) query.append("username", params.username)
   if (params?.start_date) query.append("start_date", params.start_date)
   if (params?.end_date) query.append("end_date", params.end_date)
   if (params?.subject_id !== undefined && params?.subject_id !== null) query.append("subject_id", String(params.subject_id))
+  if (params?.timezone) query.append("timezone", params.timezone)
   
   const queryString = query.toString()
   return apiFetch(`/stats/daily${queryString ? `?${queryString}` : ""}`)
