@@ -568,23 +568,23 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                   )
                 })}
 
-              {/* Current time indicator - red line */}
-              {currentTime && (
-                <div
-                  className="absolute left-10 right-0 pointer-events-none z-10"
-                  style={{
-                    top: `${((currentTime.hour + currentTime.minute / 60) / 24) * 800 * zoomLevel}px`,
-                  }}
-                >
-                  <div className="h-0.5 bg-red-500 w-full relative">
-                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full"></div>
-                  </div>
-                </div>
-              )}
-
               <div className="grid grid-cols-8 ml-10" style={{ height: `${800 * zoomLevel}px` }}>
                 <div />
                 {data.length > 0 ? data.map((day, dayIndex) => (
+                  <div key={dayIndex} className="relative border-l border-white/10">
+                    {/* Current time indicator - red line (only on today's column) */}
+                    {currentTime && currentTime.dayIndex === dayIndex && (
+                      <div
+                        className="absolute left-0 right-0 pointer-events-none z-20"
+                        style={{
+                          top: `${((currentTime.hour + currentTime.minute / 60) / 24) * 800 * zoomLevel}px`,
+                        }}
+                      >
+                        <div className="h-0.5 bg-red-500 w-full relative">
+                          <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full"></div>
+                        </div>
+                      </div>
+                    )}
                 <div key={dayIndex} className="relative border-l border-white/10">
                   {day.blocks.map((block, blockIndex) => {
                     // Calculate position for 24-hour view (0-23) with zoom
