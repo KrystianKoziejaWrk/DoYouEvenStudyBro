@@ -407,8 +407,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
-      minute: "2-digit",
-      weekday: "long"
+      minute: "2-digit"
     })
     
     const parts = formatter.formatToParts(now)
@@ -417,36 +416,36 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
     const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0")
     const minute = parseInt(parts.find(p => p.type === "minute")?.value || "0")
-    const weekday = parts.find(p => p.type === "weekday")?.value || "Sunday"
     
-    // Map weekday to day index (0=Sun, 1=Mon, ..., 6=Sat)
-    const dayMap: { [key: string]: number } = {
-      "Sunday": 0,
-      "Monday": 1,
-      "Tuesday": 2,
-      "Wednesday": 3,
-      "Thursday": 4,
-      "Friday": 5,
-      "Saturday": 6
-    }
-    const dayIndex = dayMap[weekday] || 0
-    
-    // Check if today is in the current week
+    // Get today's date string in timezone (YYYY-MM-DD)
     const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    
+    // Build the week dates array the same way the calendar does (with +1 day shift)
     const weekStartDateStr = getDateInTimezone(weekStart)
     const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
+    const sundayDate = new Date(wsYear, wsMonth - 1, wsDay)
+    sundayDate.setDate(sundayDate.getDate() + 1) // Same shift as calendar
     
-    // Calculate if today is within the week (Sunday to Saturday)
-    const weekStartLocal = new Date(wsYear, wsMonth - 1, wsDay)
-    const todayLocal = new Date(year, month, day)
-    const daysDiff = Math.floor((todayLocal.getTime() - weekStartLocal.getTime()) / (1000 * 60 * 60 * 24))
+    const weekDatesInTimezone: string[] = []
+    for (let j = 0; j < 7; j++) {
+      const weekDate = new Date(sundayDate)
+      weekDate.setDate(sundayDate.getDate() + j)
+      const y = weekDate.getFullYear()
+      const m = String(weekDate.getMonth() + 1).padStart(2, '0')
+      const d = String(weekDate.getDate()).padStart(2, '0')
+      weekDatesInTimezone.push(`${y}-${m}-${d}`)
+    }
     
-    // Only show indicator if today is in the current week (0-6 days from Sunday)
-    if (daysDiff >= 0 && daysDiff < 7) {
-      setCurrentTime({ dayIndex: daysDiff, hour, minute })
-      console.log("🕐 Current time indicator:", { dayIndex: daysDiff, hour, minute, weekday })
+    // Find which column index (0-6) matches today's date
+    const dayIndex = weekDatesInTimezone.findIndex(dateStr => dateStr === todayDateStr)
+    
+    // Only show indicator if today is in the current week
+    if (dayIndex >= 0 && dayIndex < 7) {
+      setCurrentTime({ dayIndex, hour, minute })
+      console.log("🕐 Current time indicator:", { dayIndex, hour, minute, todayDateStr, weekDatesInTimezone })
     } else {
       setCurrentTime(null)
+      console.log("🕐 Today not in current week:", { todayDateStr, weekDatesInTimezone })
     }
   }, [weekStart, timezone])
 
