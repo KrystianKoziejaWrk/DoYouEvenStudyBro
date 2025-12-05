@@ -37,6 +37,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const [profileSubjects, setProfileSubjects] = useState<any[]>([]) // Subjects for the profile being viewed
   const [zoomLevel, setZoomLevel] = useState(1) // 1 = normal, 2 = 2x zoom, etc.
   const [scrollPosition, setScrollPosition] = useState(0) // Scroll position in pixels
+  const [currentTime, setCurrentTime] = useState<{ dayIndex: number; hour: number; minute: number } | null>(null)
   
   // When viewing someone else's profile, use their subjects; otherwise use viewer's subjects
   const effectiveSubjects = username ? profileSubjects : subjects
@@ -566,6 +567,20 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                     </div>
                   )
                 })}
+
+              {/* Current time indicator - red line */}
+              {currentTime && (
+                <div
+                  className="absolute left-10 right-0 pointer-events-none z-10"
+                  style={{
+                    top: `${((currentTime.hour + currentTime.minute / 60) / 24) * 800 * zoomLevel}px`,
+                  }}
+                >
+                  <div className="h-0.5 bg-red-500 w-full relative">
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full"></div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-8 ml-10" style={{ height: `${800 * zoomLevel}px` }}>
                 <div />
