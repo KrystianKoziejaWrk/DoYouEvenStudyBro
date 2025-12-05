@@ -585,7 +585,6 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                         </div>
                       </div>
                     )}
-                <div key={dayIndex} className="relative border-l border-white/10">
                   {day.blocks.map((block, blockIndex) => {
                     // Calculate position for 24-hour view (0-23) with zoom
                     const containerHeight = 800 * zoomLevel
