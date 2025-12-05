@@ -382,6 +382,74 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     load()
   }, [weekStart, subjects, selectedSubject, showAllSubjects, timezone, username])
 
+  // Calculate current time indicator on load
+  useEffect(() => {
+    const getDateInTimezone = (date: Date): string => {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      })
+      const parts = formatter.formatToParts(date)
+      const year = parts.find(p => p.type === "year")?.value
+      const month = parts.find(p => p.type === "month")?.value
+      const day = parts.find(p => p.type === "day")?.value
+      return `${year}-${month}-${day}`
+    }
+    
+    const now = new Date()
+    
+    // Get current date and time in user's timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "long"
+    })
+    
+    const parts = formatter.formatToParts(now)
+    const year = parseInt(parts.find(p => p.type === "year")?.value || "0")
+    const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1
+    const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
+    const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0")
+    const minute = parseInt(parts.find(p => p.type === "minute")?.value || "0")
+    const weekday = parts.find(p => p.type === "weekday")?.value || "Sunday"
+    
+    // Map weekday to day index (0=Sun, 1=Mon, ..., 6=Sat)
+    const dayMap: { [key: string]: number } = {
+      "Sunday": 0,
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 3,
+      "Thursday": 4,
+      "Friday": 5,
+      "Saturday": 6
+    }
+    const dayIndex = dayMap[weekday] || 0
+    
+    // Check if today is in the current week
+    const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const weekStartDateStr = getDateInTimezone(weekStart)
+    const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
+    
+    // Calculate if today is within the week (Sunday to Saturday)
+    const weekStartLocal = new Date(wsYear, wsMonth - 1, wsDay)
+    const todayLocal = new Date(year, month, day)
+    const daysDiff = Math.floor((todayLocal.getTime() - weekStartLocal.getTime()) / (1000 * 60 * 60 * 24))
+    
+    // Only show indicator if today is in the current week (0-6 days from Sunday)
+    if (daysDiff >= 0 && daysDiff < 7) {
+      setCurrentTime({ dayIndex: daysDiff, hour, minute })
+      console.log("🕐 Current time indicator:", { dayIndex: daysDiff, hour, minute, weekday })
+    } else {
+      setCurrentTime(null)
+    }
+  }, [weekStart, timezone])
+
   const previousWeek = () => {
     const d = new Date(weekStart)
     d.setUTCDate(d.getUTCDate() - 7)
