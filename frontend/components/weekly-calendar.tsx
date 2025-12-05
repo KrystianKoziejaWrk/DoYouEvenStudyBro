@@ -400,22 +400,31 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     
     const now = new Date()
     
-    // Get current date and time in user's timezone
+    // Get current date and time in user's timezone (24-hour format)
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
+      hour12: false // Force 24-hour format (0-23)
     })
     
     const parts = formatter.formatToParts(now)
     const year = parseInt(parts.find(p => p.type === "year")?.value || "0")
     const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1
     const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
-    const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0")
+    let hour = parseInt(parts.find(p => p.type === "hour")?.value || "0")
     const minute = parseInt(parts.find(p => p.type === "minute")?.value || "0")
+    
+    // Check if we got AM/PM indicator (shouldn't happen with hour12: false, but just in case)
+    const dayPeriod = parts.find(p => p.type === "dayPeriod")?.value
+    if (dayPeriod === "PM" && hour < 12) {
+      hour += 12
+    } else if (dayPeriod === "AM" && hour === 12) {
+      hour = 0
+    }
     
     // Get today's date string in timezone (YYYY-MM-DD)
     const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
