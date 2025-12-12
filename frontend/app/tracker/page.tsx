@@ -539,12 +539,24 @@ function TrackerPageContent() {
           setIsRunning(true)
           setStartTimestamp(now)
         } else {
-          // Stop tracking
-          setIsRunning(false)
-          setShowPopup(true)
+          // Stop tracking - check duration first
+          const actualDuration = Date.now() - (startTimestamp || Date.now())
           
-          // Always save session (no minimum duration)
-          await handleSaveSession()
+          if (actualDuration < 30000) {
+            // Session under 30 seconds - show error, reset immediately, no cooldown
+            toast.error("I am not paying for this short ahh session in my database 💀")
+            setIsRunning(false)
+            setDisplayMilliseconds(0)
+            setStartTimestamp(null)
+            setShowPopup(false)
+            localStorage.removeItem(STORAGE_KEY)
+            // Don't call handleSaveSession - just reset
+          } else {
+            // Session 30+ seconds - normal save flow
+            setIsRunning(false)
+            setShowPopup(true)
+            await handleSaveSession()
+          }
         }
       }}
     >
