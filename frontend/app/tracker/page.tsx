@@ -271,17 +271,64 @@ function TrackerPageContent() {
     }
   }, [isRunning, startTimestamp])
 
+  // Recover any pending sessions on mount (from previous tab close)
+  useEffect(() => {
+    if (!isHydrated) return
+    
+    const pendingSession = localStorage.getItem("focus_tracker_pending_session")
+    if (pendingSession) {
+      try {
+        const session = JSON.parse(pendingSession)
+        const token = localStorage.getItem("access_token")
+        
+        if (token && session.saved_at) {
+          // Try to save the pending session
+          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001"}/api/sessions`
+          fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              subject_id: session.subject_id,
+              duration_ms: session.duration_ms,
+              started_at: session.started_at,
+              ended_at: session.ended_at,
+            }),
+          }).then(() => {
+            console.log("✅ Recovered pending session")
+            localStorage.removeItem("focus_tracker_pending_session")
+            toast.success("✅ Recovered your previous session!")
+          }).catch((err) => {
+            console.error("❌ Failed to recover pending session:", err)
+          })
+        }
+      } catch (err) {
+        console.error("Failed to parse pending session:", err)
+        localStorage.removeItem("focus_tracker_pending_session")
+      }
+    }
+  }, [isHydrated])
+
   // Handle page unload - save session when leaving
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    let hasSavedOnUnload = false
+    
+    const saveSessionOnUnload = () => {
+      // Prevent multiple saves
+      if (hasSavedOnUnload) return
+      
       if (isRunning && startTimestamp && selectedSubjectId) {
         // Calculate actual duration
         const actualDuration = Date.now() - startTimestamp
         
-        if (actualDuration >= 1000) {
-          // Save session synchronously before page unloads
+        // Minimum 30 seconds (30000 ms) - same as manual save
+        if (actualDuration >= 30000) {
           const token = localStorage.getItem("access_token")
           if (token) {
+            hasSavedOnUnload = true
+            
             const data = {
               subject_id: selectedSubjectId,
               duration_ms: actualDuration,
@@ -289,24 +336,34 @@ function TrackerPageContent() {
               ended_at: new Date().toISOString(),
             }
             
-            // Use synchronous XMLHttpRequest for reliable delivery
-            try {
-              const xhr = new XMLHttpRequest()
-              xhr.open("POST", `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001"}/api/sessions`, false) // false = synchronous
-              xhr.setRequestHeader("Content-Type", "application/json")
-              xhr.setRequestHeader("Authorization", `Bearer ${token}`)
-              xhr.send(JSON.stringify(data))
-              
-              if (xhr.status >= 200 && xhr.status < 300) {
-                console.log("✅ Session saved on page unload")
-              } else {
-                console.error("❌ Failed to save session on unload:", xhr.status, xhr.responseText)
-              }
-            } catch (err) {
-              console.error("❌ Error saving session on unload:", err)
-            }
+            // Store backup in localStorage in case API call fails
+            localStorage.setItem("focus_tracker_pending_session", JSON.stringify({
+              ...data,
+              saved_at: Date.now(),
+            }))
             
-            // Clear localStorage
+            const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001"}/api/sessions`
+            
+            // Use fetch with keepalive - this is the most reliable way to send data
+            // with custom headers (like Authorization) when the page is unloading
+            fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify(data),
+              keepalive: true, // Critical: allows request to continue after page unload
+            }).then(() => {
+              console.log("✅ Session saved on page unload")
+              // Clear backup on success
+              localStorage.removeItem("focus_tracker_pending_session")
+            }).catch((err) => {
+              console.error("❌ Failed to save session on unload:", err)
+              // Backup remains in localStorage for recovery
+            })
+            
+            // Clear session state
             localStorage.removeItem(STORAGE_KEY)
             
             // Set cooldown in localStorage so it persists across page reloads
@@ -316,9 +373,32 @@ function TrackerPageContent() {
       }
     }
     
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRunning && startTimestamp && selectedSubjectId) {
+        // Show browser confirmation dialog
+        // Note: Modern browsers ignore custom messages, but still show a confirmation
+        e.preventDefault()
+        e.returnValue = "" // Required for Chrome
+        return "" // Required for some browsers
+        
+        // The save will happen in pagehide event
+      }
+    }
+    
+    const handlePageHide = (e: PageTransitionEvent) => {
+      // pagehide fires more reliably than beforeunload, especially on mobile
+      // It fires even when the page is being cached (bfcache)
+      if (isRunning && startTimestamp && selectedSubjectId) {
+        saveSessionOnUnload()
+      }
+    }
+    
     window.addEventListener("beforeunload", handleBeforeUnload)
+    window.addEventListener("pagehide", handlePageHide)
+    
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload)
+      window.removeEventListener("pagehide", handlePageHide)
     }
   }, [isRunning, startTimestamp, selectedSubjectId])
 
@@ -339,9 +419,15 @@ function TrackerPageContent() {
     // Calculate actual duration from timestamps (accurate even if tab was inactive)
     const actualDuration = Date.now() - startTimestamp
     
-    // Save ALL sessions, no minimum duration
-    if (actualDuration < 1000) {
-      // Less than 1 second - probably an error, don't save
+    // Minimum 30 seconds (30000 ms) - backend will reject shorter sessions
+    if (actualDuration < 30000) {
+      toast.error("I am not paying for this short ahh session in my database 💀")
+      // Reset timer but don't save
+      setDisplayMilliseconds(0)
+      setStartTimestamp(null)
+      setIsRunning(false)
+      setShowPopup(false)
+      localStorage.removeItem(STORAGE_KEY)
       return
     }
     

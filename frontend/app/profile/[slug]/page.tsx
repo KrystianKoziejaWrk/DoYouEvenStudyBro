@@ -28,26 +28,15 @@ import Last30Line from "@/components/last-30-line"
 import WeeklyCalendar from "@/components/weekly-calendar"
 import { minutesToHhMm } from "@/lib/utils"
 import { toast } from "sonner"
+import { getRankByHours } from "@/components/top-row"
 
 const RANKS = [
-  { name: "Baus", minHours: 0, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2002-00-29-20am.png" },
-  { name: "Sherm", minHours: 5, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-35-20-20pm.png" },
-  { name: "Squid", minHours: 10, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2002-00-06-20am.png" },
-  { name: "French Mouse", minHours: 15, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-33-28-20pm.png" },
-  { name: "Taus", minHours: 30, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-32-49-20pm.png" },
+  { name: "Baus", minXP: 0, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2002-00-29-20am.png" },
+  { name: "Sherm", minXP: 100, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-35-20-20pm.png" },
+  { name: "Squid", minXP: 300, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2002-00-06-20am.png" },
+  { name: "French Mouse", minXP: 600, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-33-28-20pm.png" },
+  { name: "Taus", minXP: 1000, image: "/images/chatgpt-20image-20nov-2028-2c-202025-2c-2003-32-49-20pm.png" },
 ]
-
-function getRank(totalHours: number) {
-  for (let i = RANKS.length - 1; i >= 0; i--) {
-    if (totalHours >= RANKS[i].minHours) {
-      const current = RANKS[i]
-      const next = RANKS[i + 1]
-      const progressToNext = next ? ((totalHours - current.minHours) / (next.minHours - current.minHours)) * 100 : 100
-      return { current, next, progressToNext }
-    }
-  }
-  return { current: RANKS[0], next: RANKS[1], progressToNext: 0 }
-}
 
 export default function ProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { user: currentUser } = useAuth()
@@ -78,13 +67,13 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
       try {
         console.log("📊 Loading profile data for:", username)
         
-        // Calculate date ranges (Sunday-Saturday, matching weekly calendar)
+        // Calculate date ranges (Monday-Sunday, matching dashboard)
         // Use viewer's timezone to calculate week boundaries
         const today = new Date()
-        const daysSinceSunday = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+        const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1 // 0 = Sunday, 1 = Monday, etc.
         const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - daysSinceSunday)
-        weekStart.setHours(0, 0, 0, 0) // Start of Sunday in viewer's timezone
+        weekStart.setDate(today.getDate() - daysSinceMonday)
+        weekStart.setHours(0, 0, 0, 0) // Start of Monday in viewer's timezone
         const weekEnd = new Date(today)
         weekEnd.setHours(23, 59, 59, 999) // End of today
         
@@ -302,15 +291,36 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
     )
   }
 
-  // Calculate total hours from summary or weekly data (in minutes, then convert)
+  // Calculate totalMinutes first (EXACTLY like dashboard: Math.round)
+  // This matches dashboard: setStats({ totalMinutes: Math.round(summary.totalMinutes || 0), ... })
   const totalMinutes = summary 
-    ? (summary.totalMinutes || 0)
+    ? Math.round(summary.totalMinutes || 0)
     : weeklyData 
-      ? (weeklyData.weeklyTotalMinutes || 0)
+      ? Math.round(weeklyData.weeklyTotalMinutes || 0)
       : 0
   
-  const totalHours = totalMinutes / 60
-  const rankInfo = getRank(totalHours)
+  // Calculate weekly hours for ranking (EXACTLY like dashboard: stats.totalMinutes / 60)
+  // Dashboard does: const weeklyHours = stats ? stats.totalMinutes / 60 : 0
+  const weeklyHours = totalMinutes / 60
+  
+  // Get rank info using the same calculation as dashboard
+  // ALWAYS use our calculation, never backend's weeklyHours (it might be rounded differently)
+  const rankInfo = getRankByHours(weeklyHours)
+  
+  // Debug log to see what values we're getting
+  console.log("🔍 Rank calculation debug:", {
+    summaryTotalMinutes: summary?.totalMinutes,
+    summaryWeeklyHours: summary?.weeklyHours,
+    backendRank: summary?.rank,
+    totalMinutes,
+    weeklyHours,
+    calculatedRank: rankInfo?.current?.name,
+    rankInfoNext: rankInfo?.next?.name,
+    hoursToNext: rankInfo?.hoursToNext,
+    minutesToNext: rankInfo?.minutesToNext,
+    currentRankMinHours: rankInfo?.current?.minHours,
+    nextRankMinHours: rankInfo?.next?.minHours
+  })
   const totalSubjectMinutes = subjectStats.reduce((sum, s) => sum + (s.minutes || 0), 0)
   
   console.log("📊 Profile data state:", {
@@ -506,7 +516,7 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
                       <div className="flex items-center gap-2 mt-1">
                         <Progress value={rankInfo.progressToNext} className="h-1.5 w-20 bg-gray-800" />
                         <span className="text-xs text-gray-500">
-                          {minutesToHhMm((rankInfo.next.minHours - totalHours) * 60)} to {rankInfo.next.name}
+                          {minutesToHhMm(rankInfo.minutesToNext || 0)} to {rankInfo.next.name}
                         </span>
                       </div>
                     )}

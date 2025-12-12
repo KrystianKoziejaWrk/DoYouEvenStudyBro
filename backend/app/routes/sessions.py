@@ -32,9 +32,9 @@ def create_session():
     if not duration_ms:
         return jsonify({"error": "duration_ms is required"}), 400
     
-    # Validate duration (at least 1 second = 1000 ms)
-    if duration_ms < 1000:
-        return jsonify({"error": "Session must be at least 1 second"}), 400
+    # Validate duration (at least 30 seconds = 30000 ms)
+    if duration_ms < 30000:
+        return jsonify({"error": "I am not paying for this short ahh session in my database 💀"}), 400
     
     # Max 10 hours = 36,000,000 ms
     if duration_ms > 36000000:

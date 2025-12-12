@@ -39,7 +39,7 @@ const RANKS = [
   },
 ]
 
-function getRankByHours(weeklyHours: number) {
+export function getRankByHours(weeklyHours: number) {
   // Rank thresholds based on hours per week (matching backend)
   const rankThresholds = [
     { name: "Baus", minHours: 0 },
