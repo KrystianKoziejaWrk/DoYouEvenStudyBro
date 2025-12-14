@@ -215,6 +215,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         console.log("📅 Week start (UTC):", weekStart.toISOString())
         console.log("📅 Week dates in timezone:", weekDatesInTimezone)
         console.log("📅 Total sessions to process:", sessionsToShow.length)
+        console.log("📅 All sessions from backend:", sessionsToShow.map((s: any) => ({
+          id: s.id,
+          started_at: s.started_at,
+          subject: s.subject
+        })))
 
         sessionsToShow.forEach((session: any) => {
           let startStr = session.started_at
@@ -251,19 +256,32 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             // Date matches a day in the week - use that index
             dayIndex = dateIndex
           } else {
-            // Date doesn't match (might be from previous/next week due to timezone edge cases)
-            // But if the day of week calculation says it's in range, trust that
-            // Only skip if it's clearly outside the week range
+            // Date doesn't match exactly - this happens when timezone causes date shift
+            // For example: Saturday 11 PM in user's timezone = Sunday 4 AM UTC
+            // The backend grouped it under Sunday (UTC), but in user's timezone it's Saturday
+            // We should still show it in Saturday column based on day of week
+            // Only skip if it's clearly outside the week range (more than 1 day off)
             const weekStartDate = new Date(weekDatesInTimezone[0] + "T00:00:00")
             const weekEndDate = new Date(weekDatesInTimezone[6] + "T23:59:59")
             const sessionDate = new Date(sessionDateInTimezone + "T00:00:00")
             
-            if (sessionDate < weekStartDate || sessionDate > weekEndDate) {
-              console.warn(`⚠️ Session date ${sessionDateInTimezone} outside week range: ${weekDatesInTimezone[0]} to ${weekDatesInTimezone[6]} - SKIPPING`)
+            // Calculate days difference
+            const daysDiff = Math.round((sessionDate.getTime() - weekStartDate.getTime()) / (1000 * 60 * 60 * 24))
+            
+            if (daysDiff < -1 || daysDiff > 7) {
+              console.warn(`⚠️ Session date ${sessionDateInTimezone} way outside week range (${daysDiff} days off) - SKIPPING`)
               return // Skip sessions clearly outside the week
             }
-            // If we get here, it's a timezone edge case - trust the dayIndex from day of week
-            console.log(`⚠️ Session date ${sessionDateInTimezone} not in weekDates but dayOfWeek suggests it's in range, using dayIndex=${dayIndex}`)
+            
+            // If day of week suggests it's Saturday (6) and we're looking at Saturday column, use it
+            // Trust the day of week calculation for timezone edge cases
+            console.log(`⚠️ Session date ${sessionDateInTimezone} not in weekDates but dayOfWeek=${sessionDayOfWeek} suggests dayIndex=${dayIndex}, using it`)
+          }
+          
+          // Final validation: make sure dayIndex is valid (0-6)
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.error(`❌ Invalid dayIndex ${dayIndex} for session, skipping`)
+            return
           }
           
           console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek}, DayIndex=${dayIndex} (${days[dayIndex]})`)
@@ -271,7 +289,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           sessionsByDayIndex[dayIndex].push(session)
         })
 
-        console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => `${i}(${days[Number(i)]}): ${sessionsByDayIndex[Number(i)].length}`).join(", "))
+        console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => {
+          const idx = Number(i)
+          const sessionList = sessionsByDayIndex[idx]
+          return `${idx}(${days[idx]}): ${sessionList.length} sessions${sessionList.length > 0 ? ` [${sessionList.map((s: any) => s.started_at).join(', ')}]` : ''}`
+        }).join(", "))
 
         // Create schedule for the week (Monday to Sunday, but display as Sun-Sat)
         // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
