@@ -237,15 +237,6 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Verify the session's date is within the week range
-          // This ensures we don't show sessions from previous/next week
-          const sessionDateMatches = weekDatesInTimezone.includes(sessionDateInTimezone)
-          
-          if (!sessionDateMatches) {
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week dates: ${weekDatesInTimezone.join(', ')} - SKIPPING`)
-            return // Skip sessions that don't belong to this week
-          }
-          
           // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
           const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
           // Map to day index: weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
@@ -253,11 +244,26 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           // So we need to map: Mon(1) -> 0, Tue(2) -> 1, ..., Sun(0) -> 6
           let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
           
-          // Double-check: find which day index this date corresponds to in the week
+          // Find which day index this date corresponds to in the week
+          // This is the source of truth - use the actual date in timezone, not backend grouping
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
-          if (dateIndex !== -1 && dateIndex !== dayIndex) {
-            console.warn(`⚠️ Date index mismatch: dateIndex=${dateIndex}, dayIndex=${dayIndex}, using dateIndex`)
+          if (dateIndex !== -1) {
+            // Date matches a day in the week - use that index
             dayIndex = dateIndex
+          } else {
+            // Date doesn't match (might be from previous/next week due to timezone edge cases)
+            // But if the day of week calculation says it's in range, trust that
+            // Only skip if it's clearly outside the week range
+            const weekStartDate = new Date(weekDatesInTimezone[0] + "T00:00:00")
+            const weekEndDate = new Date(weekDatesInTimezone[6] + "T23:59:59")
+            const sessionDate = new Date(sessionDateInTimezone + "T00:00:00")
+            
+            if (sessionDate < weekStartDate || sessionDate > weekEndDate) {
+              console.warn(`⚠️ Session date ${sessionDateInTimezone} outside week range: ${weekDatesInTimezone[0]} to ${weekDatesInTimezone[6]} - SKIPPING`)
+              return // Skip sessions clearly outside the week
+            }
+            // If we get here, it's a timezone edge case - trust the dayIndex from day of week
+            console.log(`⚠️ Session date ${sessionDateInTimezone} not in weekDates but dayOfWeek suggests it's in range, using dayIndex=${dayIndex}`)
           }
           
           console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek}, DayIndex=${dayIndex} (${days[dayIndex]})`)
