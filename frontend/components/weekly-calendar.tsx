@@ -44,8 +44,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // When viewing someone else's profile, don't apply viewer's filters
   const shouldFilterBySubject = !username && !showAllSubjects && selectedSubject !== undefined
   
-  // Calculate Sunday in user's timezone, not UTC
-  const getSundayInTimezone = (date: Date): Date => {
+  // Calculate Monday in user's timezone, matching backend (Monday-Sunday week)
+  const getMondayInTimezone = (date: Date): Date => {
     // Get the date in the user's timezone
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
@@ -58,17 +58,17 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     const year = parseInt(parts.find(p => p.type === "year")?.value || "0")
     const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1
     const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
-    const weekday = parts.find(p => p.type === "weekday")?.value || "Sunday"
+    const weekday = parts.find(p => p.type === "weekday")?.value || "Monday"
     
-    // Calculate days to subtract to get to Sunday (0=Sun, 1=Mon, ..., 6=Sat)
+    // Calculate days to subtract to get to Monday (0=Sun, 1=Mon, ..., 6=Sat)
     const dayMap: { [key: string]: number } = {
-      "Sunday": 0,
-      "Monday": 1,
-      "Tuesday": 2,
-      "Wednesday": 3,
-      "Thursday": 4,
-      "Friday": 5,
-      "Saturday": 6
+      "Sunday": 6,    // Sunday -> subtract 6 to get Monday
+      "Monday": 0,    // Monday -> no change
+      "Tuesday": 1,   // Tuesday -> subtract 1
+      "Wednesday": 2,
+      "Thursday": 3,
+      "Friday": 4,
+      "Saturday": 5   // Saturday -> subtract 5
     }
     const daysToSubtract = dayMap[weekday] || 0
     
@@ -76,7 +76,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     const localDate = new Date(year, month, day, 12, 0, 0)
     localDate.setDate(localDate.getDate() - daysToSubtract)
     
-    // Convert to UTC for API calls (backend expects UTC, but we'll use Sunday as start)
+    // Convert to UTC for API calls (backend expects Monday as start)
     const utcDate = new Date(Date.UTC(
       localDate.getFullYear(),
       localDate.getMonth(),
@@ -86,7 +86,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     return utcDate
   }
   
-  const [weekStart, setWeekStart] = useState<Date>(() => getSundayInTimezone(new Date()))
+  const [weekStart, setWeekStart] = useState<Date>(() => getMondayInTimezone(new Date()))
 
   const [weeklyStats, setWeeklyStats] = useState({
     totalHours: 0,
@@ -193,19 +193,19 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
-        // Get weekStart's date in user's timezone, then build the week from there
+        // But weekStart is Monday, so we need to map: 0=Mon, 1=Tue, ..., 6=Sun
+        // For display, we'll show Sun-Sat, but index 0 = Monday
         const weekStartDateStr = getDateInTimezone(weekStart)
         const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
         
-        // Create Sunday date in user's timezone (local date object)
-        // Add 1 day to shift dates forward
-        const sundayDate = new Date(wsYear, wsMonth - 1, wsDay)
-        sundayDate.setDate(sundayDate.getDate() + 1)
+        // Create Monday date in user's timezone (local date object)
+        const mondayDate = new Date(wsYear, wsMonth - 1, wsDay)
         
         const weekDatesInTimezone: string[] = []
+        // Build week from Monday (index 0) to Sunday (index 6)
         for (let j = 0; j < 7; j++) {
-          const weekDate = new Date(sundayDate)
-          weekDate.setDate(sundayDate.getDate() + j)
+          const weekDate = new Date(mondayDate)
+          weekDate.setDate(mondayDate.getDate() + j)
           const year = weekDate.getFullYear()
           const month = String(weekDate.getMonth() + 1).padStart(2, '0')
           const day = String(weekDate.getDate()).padStart(2, '0')
@@ -248,8 +248,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           
           // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
           const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
-          // Map to day index (0=Sun, 1=Mon, ..., 6=Sat) - already matches!
-          let dayIndex = sessionDayOfWeek
+          // Map to day index: weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
+          // But sessionDayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
+          // So we need to map: Mon(1) -> 0, Tue(2) -> 1, ..., Sun(0) -> 6
+          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
           
           // Double-check: find which day index this date corresponds to in the week
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
@@ -265,7 +267,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => `${i}(${days[Number(i)]}): ${sessionsByDayIndex[Number(i)].length}`).join(", "))
 
-        // Create schedule for the week (Sunday to Saturday)
+        // Create schedule for the week (Monday to Sunday, but display as Sun-Sat)
         // Use profile owner's subjects when viewing their profile, otherwise use viewer's subjects
         // Use freshly fetched subjects if available, otherwise fall back to state
         const currentEffectiveSubjects = username ? (fetchedProfileSubjects.length > 0 ? fetchedProfileSubjects : profileSubjects) : subjects
@@ -273,7 +275,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         console.log("🎨 Subject map (using", username ? "profile" : "viewer", "subjects):", Array.from(subjectMap.entries()).map(([name, sub]) => `${name}: ${sub.color}`).join(", "))
         
         const schedule: DaySchedule[] = []
-        for (let i = 0; i < 7; i++) {
+        // weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
+        // But we display as: Sun, Mon, Tue, Wed, Thu, Fri, Sat
+        // So we need to reorder: [6] (Sun), [0] (Mon), [1] (Tue), [2] (Wed), [3] (Thu), [4] (Fri), [5] (Sat)
+        const displayOrder = [6, 0, 1, 2, 3, 4, 5] // Sunday first, then Monday-Saturday
+        for (let displayIdx = 0; displayIdx < 7; displayIdx++) {
+          const i = displayOrder[displayIdx] // Get the actual index in weekDatesInTimezone
           // Get the date string in user's timezone for this column (already calculated)
           const dateForColumn = weekDatesInTimezone[i]
           
@@ -345,7 +352,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           const formattedDate = `${monthNames[month - 1]} ${day}`
 
           schedule.push({
-            day: days[i],
+            day: days[displayIdx], // Use display index for day name (Sun, Mon, Tue, etc.)
             date: formattedDate,
             totalMinutes: Math.round(totalMinutes),
             blocks,

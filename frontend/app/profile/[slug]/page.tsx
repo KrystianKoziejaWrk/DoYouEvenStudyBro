@@ -74,8 +74,9 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
         const weekStart = new Date(today)
         weekStart.setDate(today.getDate() - daysSinceMonday)
         weekStart.setHours(0, 0, 0, 0) // Start of Monday in viewer's timezone
-        const weekEnd = new Date(today)
-        weekEnd.setHours(23, 59, 59, 999) // End of today
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6) // Sunday (6 days after Monday)
+        weekEnd.setHours(23, 59, 59, 999) // End of Sunday
         
         // Convert to ISO date strings (YYYY-MM-DD) for API calls
         // The backend will handle timezone conversion for the actual session queries
