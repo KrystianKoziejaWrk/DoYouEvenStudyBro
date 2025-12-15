@@ -97,7 +97,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   })
 
   const hours = Array.from({ length: 24 }, (_, i) => i)
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  // Keep columns ordered Monday -> Sunday to align with backend weekStart
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
   useEffect(() => {
     const load = async () => {
@@ -192,9 +193,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         }
 
         // Pre-calculate all dates in the week in user's timezone
-        // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
-        // But weekStart is Monday, so we need to map: 0=Mon, 1=Tue, ..., 6=Sun
-        // For display, we'll show Sun-Sat, but index 0 = Monday
+        // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
         const weekStartDateStr = getDateInTimezone(weekStart)
         const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
         
@@ -304,11 +303,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         
         const schedule: DaySchedule[] = []
         // weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
-        // But we display as: Sun, Mon, Tue, Wed, Thu, Fri, Sat
-        // So we need to reorder: [6] (Sun), [0] (Mon), [1] (Tue), [2] (Wed), [3] (Thu), [4] (Fri), [5] (Sat)
-        const displayOrder = [6, 0, 1, 2, 3, 4, 5] // Sunday first, then Monday-Saturday
-        for (let displayIdx = 0; displayIdx < 7; displayIdx++) {
-          const i = displayOrder[displayIdx] // Get the actual index in weekDatesInTimezone
+        for (let i = 0; i < 7; i++) {
           // Get the date string in user's timezone for this column (already calculated)
           const dateForColumn = weekDatesInTimezone[i]
           
@@ -380,7 +375,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           const formattedDate = `${monthNames[month - 1]} ${day}`
 
           schedule.push({
-            day: days[displayIdx], // Use display index for day name (Sun, Mon, Tue, etc.)
+            day: days[i], // Mon -> Sun order
             date: formattedDate,
             totalMinutes: Math.round(totalMinutes),
             blocks,
@@ -464,16 +459,15 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     // Get today's date string in timezone (YYYY-MM-DD)
     const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     
-    // Build the week dates array the same way the calendar does (with +1 day shift)
+    // Build the week dates array the same way the calendar does (Monday -> Sunday)
     const weekStartDateStr = getDateInTimezone(weekStart)
     const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
-    const sundayDate = new Date(wsYear, wsMonth - 1, wsDay)
-    sundayDate.setDate(sundayDate.getDate() + 1) // Same shift as calendar
+    const mondayDate = new Date(wsYear, wsMonth - 1, wsDay)
     
     const weekDatesInTimezone: string[] = []
     for (let j = 0; j < 7; j++) {
-      const weekDate = new Date(sundayDate)
-      weekDate.setDate(sundayDate.getDate() + j)
+      const weekDate = new Date(mondayDate)
+      weekDate.setDate(mondayDate.getDate() + j)
       const y = weekDate.getFullYear()
       const m = String(weekDate.getMonth() + 1).padStart(2, '0')
       const d = String(weekDate.getDate()).padStart(2, '0')
@@ -531,12 +525,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             </Button>
             <span className="text-sm text-gray-400 w-32 text-center">
               {(() => {
-                // weekStart is Sunday UTC, convert to user's timezone for display
-                // Shift by 1 day to match the calendar dates
+                // weekStart is Monday UTC, convert to user's timezone for display (Mon-Sun)
                 const startDate = new Date(weekStart)
                 const endDate = new Date(weekStart)
-                startDate.setUTCDate(weekStart.getUTCDate() + 1) // Shift forward by 1 day
-                endDate.setUTCDate(weekStart.getUTCDate() + 7) // Add 7 days (6 + 1 shift) to get Saturday
+                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Monday + 6 = Sunday
                 const startStr = startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 const endStr = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 return `${startStr} - ${endStr}`
