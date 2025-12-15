@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Clock, Target } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -55,6 +55,27 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     return sunday
   }
   const [weekStart, setWeekStart] = useState<Date>(() => getSundayUTC(new Date()))
+  
+  // Week dates (Sunday -> Saturday) in user's timezone for rendering labels when data is empty
+  const weekDatesRender = useMemo(() => {
+    const dates: string[] = []
+    for (let j = 0; j < 7; j++) {
+      const weekDateUTC = new Date(weekStart)
+      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      })
+      const parts = formatter.formatToParts(weekDateUTC)
+      const y = parts.find(p => p.type === "year")?.value
+      const m = parts.find(p => p.type === "month")?.value
+      const d = parts.find(p => p.type === "day")?.value
+      dates.push(`${y}-${m}-${d}`)
+    }
+    return dates
+  }, [weekStart, timezone])
 
   const [weeklyStats, setWeeklyStats] = useState({
     totalHours: 0,
@@ -532,8 +553,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
                     <p className="text-xs text-gray-400">
-                      {weekDatesInTimezone[i] ? (() => {
-                        const [y, m, d] = weekDatesInTimezone[i].split('-').map(Number)
+                      {weekDatesRender[i] ? (() => {
+                        const [y, m, d] = weekDatesRender[i].split('-').map(Number)
                         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                         return `${monthNames[m - 1]} ${d}`
                       })() : ""}
@@ -619,7 +640,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                   <div key={dayIndex} className="relative border-l border-white/10">
                     {/* Rank reset marker: Sunday (UTC) start */}
                     {dayIndex === 0 && (
-                      <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-amber-400" title="Ranks reset (Sunday UTC)" />
+                      <div
+                        className="absolute top-0 left-0 right-0 z-10 h-1.5 bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]"
+                        title="Ranks reset (Sunday UTC)"
+                      />
                     )}
                     {/* Current time indicator - red line (only on today's column) */}
                     {currentTime && currentTime.dayIndex === dayIndex && (
