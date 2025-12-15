@@ -372,7 +372,7 @@ export default function LandingPage() {
                   someone who struggled with "being so busy all the time", I wanted to create a tool that helps 
                   me to see how much work I and others actually do. The goal is to become a better, more efficient learner,
                   spending less time studying and more time doing other great things with the precious and little time we have.
-                  When I am not programming, you can find me lifting, gaming, or washing windows. :)
+                  When I am not programming, you can find me lifting, gaming, or washing windows.
                 </p>
 
                 <div className="flex items-center justify-center md:justify-start gap-4">
