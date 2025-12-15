@@ -153,10 +153,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
+        // Apply a +1 day shift to align labels with expected local dates
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
           const weekDateUTC = new Date(weekStart)
-          weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+          weekDateUTC.setUTCDate(weekStart.getUTCDate() + j + 1) // shift forward one day
           // Format in user's timezone to YYYY-MM-DD
           const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -457,8 +458,9 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
               {(() => {
                 // weekStart is Monday UTC, convert to user's timezone for display (Mon-Sun)
                 const startDate = new Date(weekStart)
+                startDate.setUTCDate(weekStart.getUTCDate() + 1) // shift forward one day
                 const endDate = new Date(weekStart)
-                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Monday + 6 = Sunday
+                endDate.setUTCDate(weekStart.getUTCDate() + 7) // shift forward one day for end
                 const startStr = startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 const endStr = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 return `${startStr} - ${endStr}`
