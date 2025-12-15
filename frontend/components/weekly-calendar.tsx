@@ -231,14 +231,19 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Determine which column this date belongs to (strict match to weekDatesInTimezone)
+          // Determine which column this date belongs to (prefer strict match, fallback to weekday)
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
+          let dayIndex = dateIndex
           if (dateIndex === -1) {
-            // If it's outside this week, skip it
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in this week range: ${weekDatesInTimezone.join(", ")}`)
+            // Fallback: use weekday in user's timezone (0=Sun...6=Sat)
+            const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
+            dayIndex = sessionDayOfWeek
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week list, falling back to weekday=${sessionDayOfWeek}`)
+          }
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
             return
           }
-          const dayIndex = dateIndex // 0 = Mon, 6 = Sun
           
           console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
@@ -641,7 +646,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                     {/* Rank reset marker: Sunday (UTC) start */}
                     {dayIndex === 0 && (
                       <div
-                        className="absolute top-0 left-0 right-0 z-10 h-1.5 bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]"
+                        className="absolute top-0 left-0 right-0 z-20 h-1.5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
                         title="Ranks reset (Sunday UTC)"
                       />
                     )}
