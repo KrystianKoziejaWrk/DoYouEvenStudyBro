@@ -368,10 +368,10 @@ export default function LandingPage() {
                 <p className="text-gray-400 mb-6">Computer Engineering Student @UIUC</p>
 
                 <p className="text-gray-300 mb-6 leading-relaxed">
-                  Hi! I built DYESB? to help students track their focus time and to grow as learniners. As
+                  Hi! I built DYESB? to help students track their focus time and to grow as learners. As
                   someone who struggled with "being so busy all the time", I wanted to create a tool that helps 
-                  me to see how much work I and others actually do. The goal is to become a better more efficiant learner,
-                  spending less time on styding and more time doing other great things with the precious and little time we have.
+                  me to see how much work I and others actually do. The goal is to become a better, more efficient learner,
+                  spending less time studying and more time doing other great things with the precious and little time we have.
                   When I am not programming, you can find me lifting, gaming, or washing windows. :)
                 </p>
 
