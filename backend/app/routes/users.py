@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import timedelta
+from sqlalchemy import func
 from app import db
-from app.models import User
+from app.models import User, FocusSession
 from app.models import utc_now
 
 # Try to import better-profanity for content filtering
@@ -215,4 +216,22 @@ def get_user_count():
     count = User.query.count()
     print(f"📊 Total users in database: {count}")
     return jsonify({"count": count}), 200
+
+@users_bp.route("/stats", methods=["GET"])
+def get_global_stats():
+    """Get global stats: total users and total hours studied (public endpoint)."""
+    user_count = User.query.count()
+    
+    # Get total minutes studied across all users
+    total_ms = db.session.query(func.sum(FocusSession.duration_ms)).scalar() or 0
+    total_minutes = int(total_ms / 60000)
+    total_hours = round(total_minutes / 60, 1)
+    
+    print(f"📊 Global stats: {user_count} users, {total_hours} hours ({total_minutes} minutes)")
+    
+    return jsonify({
+        "userCount": user_count,
+        "totalHours": total_hours,
+        "totalMinutes": total_minutes
+    }), 200
 

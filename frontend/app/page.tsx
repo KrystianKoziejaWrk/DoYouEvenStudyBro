@@ -118,33 +118,33 @@ export default function LandingPage() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       {/* Navbar */}
       <nav className="border-b border-white/10 bg-black fixed top-0 left-0 right-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-1 sm:px-3 md:px-6 py-1.5 sm:py-2 md:py-3 flex items-center justify-between gap-1 sm:gap-2">
           {/* Left - Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">DYESB?</h1>
+          <Link href="/" className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white">DYESB?</h1>
           </Link>
 
-          {/* Center - Nav links */}
-          <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-            <Link href="/dashboard" className="text-sm font-medium hover:text-gray-300 transition-colors">
+          {/* Center - Nav links - visible at all zoom levels, very compact */}
+          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-4 absolute left-1/2 -translate-x-1/2 overflow-x-auto scrollbar-hide max-w-[60vw] sm:max-w-none">
+            <Link href="/dashboard" className="text-[10px] sm:text-xs md:text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Dashboard
             </Link>
-            <Link href="/tracker" className="text-sm font-medium hover:text-gray-300 transition-colors">
+            <Link href="/tracker" className="text-[10px] sm:text-xs md:text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Web Tracker
             </Link>
-            <Link href="/leaderboard" className="text-sm font-medium hover:text-gray-300 transition-colors">
+            <Link href="/leaderboard" className="text-[10px] sm:text-xs md:text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Leaderboard
             </Link>
-            <Link href="/friends" className="text-sm font-medium hover:text-gray-300 transition-colors">
+            <Link href="/friends" className="text-[10px] sm:text-xs md:text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Friends
             </Link>
-            <Link href="/settings" className="text-sm font-medium hover:text-gray-300 transition-colors">
+            <Link href="/settings" className="text-[10px] sm:text-xs md:text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap px-0.5 sm:px-1">
               Settings
             </Link>
           </div>
 
           {/* Right - User name or Sign Up */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             {user ? (
               <span className="text-white text-sm font-medium">
                 {user.display_name || user.username || user.email.split("@")[0]}
@@ -359,13 +359,12 @@ export default function LandingPage() {
               {/* Bio */}
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Krystian Kozieja</h3>
-                <p className="text-gray-400 mb-6">Developer & Creator</p>
+                <p className="text-gray-400 mb-6">Computer Engineering Student @UIUC</p>
 
                 <p className="text-gray-300 mb-6 leading-relaxed">
-                  Hi! I built DYESB? to help students and professionals track their focus time and stay accountable. As
-                  someone who struggled with productivity, I wanted to create a tool that makes tracking study sessions
-                  fun and competitive. When I am not coding, you can find me studying, gaming, or exploring new
-                  technologies.
+                  Hi! I built DYESB? to help students track their focus time and to grow as learniners. As
+                  someone who struggled with "being so busy all the time", I wanted to create a tool that helps 
+                  me to see how much work I actually do. When I am not programming, you can find me lifting, gaming, or washing windows.
                 </p>
 
                 <div className="flex items-center justify-center md:justify-start gap-4">
@@ -401,7 +400,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="relative z-10 py-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-6 text-center text-gray-500">
-          <p>Built with focus and determination. DYESB? 2025</p>
+          <p>DYESB? 2025</p>
         </div>
       </footer>
     </div>

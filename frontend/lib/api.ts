@@ -218,6 +218,15 @@ export async function getUserCount() {
   return response.json()
 }
 
+export async function getGlobalStats() {
+  // This endpoint doesn't require auth, so we'll fetch directly
+  const response = await fetch(`${API_BASE}/users/stats`)
+  if (!response.ok) {
+    return { userCount: 0, totalHours: 0, totalMinutes: 0 } // Fallback if request fails
+  }
+  return response.json()
+}
+
 export async function searchUsers(query: string) {
   return apiFetch(`/users/search?q=${encodeURIComponent(query)}`)
 }
