@@ -44,19 +44,18 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // When viewing someone else's profile, don't apply viewer's filters
   const shouldFilterBySubject = !username && !showAllSubjects && selectedSubject !== undefined
   
-  // Use UTC-based Sunday as the anchor for the week
-  const getSundayUTC = (d: Date) => {
+  // Use UTC-based Monday as the anchor for the week (0 = Monday ... 6 = Sunday)
+  const getMondayUTC = (d: Date) => {
     const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-    const day = utc.getUTCDay() // Sunday=0
-    const diff = day // days since Sunday
-    const sunday = new Date(utc)
-    sunday.setUTCDate(utc.getUTCDate() - diff)
-    sunday.setUTCHours(0, 0, 0, 0)
-    return sunday
+    const day = utc.getUTCDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
+    const diff = (day + 6) % 7 // days since Monday
+    utc.setUTCDate(utc.getUTCDate() - diff)
+    utc.setUTCHours(0, 0, 0, 0)
+    return utc
   }
-  const [weekStart, setWeekStart] = useState<Date>(() => getSundayUTC(new Date()))
+  const [weekStart, setWeekStart] = useState<Date>(() => getMondayUTC(new Date()))
   
-  // Week dates (Sunday -> Saturday) in user's timezone for rendering labels when data is empty
+  // Week dates (Monday -> Sunday) in user's timezone for rendering labels when data is empty
   const weekDatesRender = useMemo(() => {
     const dates: string[] = []
     for (let j = 0; j < 7; j++) {
@@ -86,8 +85,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   })
 
   const hours = Array.from({ length: 24 }, (_, i) => i)
-  // Columns ordered Sunday -> Saturday (UTC week start Sunday)
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  // Underlying indices: 0=Mon, 1=Tue, ..., 6=Sun (Monday-first calendar)
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
   useEffect(() => {
     const load = async () => {
@@ -141,7 +140,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           }
         }
 
-        // Helper to get day of week in user's timezone (0=Sunday, 1=Monday, ..., 6=Saturday)
+        // Helper to get day of week in user's timezone (0=Monday, 1=Tuesday, ..., 6=Sunday)
         const getDayOfWeekInTimezone = (utcDate: Date): number => {
           const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -149,13 +148,13 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           })
           const weekday = formatter.format(utcDate)
           const dayMap: { [key: string]: number } = {
-            "Sunday": 0,
-            "Monday": 1,
-            "Tuesday": 2,
-            "Wednesday": 3,
-            "Thursday": 4,
-            "Friday": 5,
-            "Saturday": 6
+            "Monday": 0,
+            "Tuesday": 1,
+            "Wednesday": 2,
+            "Thursday": 3,
+            "Friday": 4,
+            "Saturday": 5,
+            "Sunday": 6
           }
           return dayMap[weekday] ?? 0
         }
@@ -643,8 +642,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                 <div />
                 {data.length > 0 ? data.map((day, dayIndex) => (
                   <div key={dayIndex} className="relative border-l border-white/10">
-                    {/* Rank reset marker: Sunday (UTC) start */}
-                    {dayIndex === 0 && (
+                    {/* Rank reset marker: Sunday (UTC) start - last column (index 6) in Monday-first layout */}
+                    {dayIndex === 6 && (
                       <div
                         className="absolute top-0 left-0 right-0 z-20 h-1.5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
                         title="Ranks reset (Sunday UTC)"
