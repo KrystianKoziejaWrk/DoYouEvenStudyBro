@@ -44,49 +44,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // When viewing someone else's profile, don't apply viewer's filters
   const shouldFilterBySubject = !username && !showAllSubjects && selectedSubject !== undefined
   
-  // Calculate Monday in user's timezone, matching backend (Monday-Sunday week)
-  const getMondayInTimezone = (date: Date): Date => {
-    // Get the date in the user's timezone
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      weekday: "long"
-    })
-    const parts = formatter.formatToParts(date)
-    const year = parseInt(parts.find(p => p.type === "year")?.value || "0")
-    const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1
-    const day = parseInt(parts.find(p => p.type === "day")?.value || "0")
-    const weekday = parts.find(p => p.type === "weekday")?.value || "Monday"
-    
-    // Calculate days to subtract to get to Monday (0=Sun, 1=Mon, ..., 6=Sat)
-    const dayMap: { [key: string]: number } = {
-      "Sunday": 6,    // Sunday -> subtract 6 to get Monday
-      "Monday": 0,    // Monday -> no change
-      "Tuesday": 1,   // Tuesday -> subtract 1
-      "Wednesday": 2,
-      "Thursday": 3,
-      "Friday": 4,
-      "Saturday": 5   // Saturday -> subtract 5
-    }
-    const daysToSubtract = dayMap[weekday] || 0
-    
-    // Create date in user's timezone at noon to avoid DST issues
-    const localDate = new Date(year, month, day, 12, 0, 0)
-    localDate.setDate(localDate.getDate() - daysToSubtract)
-    
-    // Convert to UTC for API calls (backend expects Monday as start)
-    const utcDate = new Date(Date.UTC(
-      localDate.getFullYear(),
-      localDate.getMonth(),
-      localDate.getDate(),
-      0, 0, 0
-    ))
-    return utcDate
-  }
-  
-  const [weekStart, setWeekStart] = useState<Date>(() => getMondayInTimezone(new Date()))
+  // Use UTC-based Monday (backend expectation) as the anchor for the week
+  const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()))
 
   const [weeklyStats, setWeeklyStats] = useState({
     totalHours: 0,
@@ -194,20 +153,21 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         // Pre-calculate all dates in the week in user's timezone
         // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
-        const weekStartDateStr = getDateInTimezone(weekStart)
-        const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
-        
-        // Create Monday date in user's timezone (local date object)
-        const mondayDate = new Date(wsYear, wsMonth - 1, wsDay)
-        
         const weekDatesInTimezone: string[] = []
-        // Build week from Monday (index 0) to Sunday (index 6)
         for (let j = 0; j < 7; j++) {
-          const weekDate = new Date(mondayDate)
-          weekDate.setDate(mondayDate.getDate() + j)
-          const year = weekDate.getFullYear()
-          const month = String(weekDate.getMonth() + 1).padStart(2, '0')
-          const day = String(weekDate.getDate()).padStart(2, '0')
+          const weekDateUTC = new Date(weekStart)
+          weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+          // Format in user's timezone to YYYY-MM-DD
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          })
+          const parts = formatter.formatToParts(weekDateUTC)
+          const year = parts.find(p => p.type === "year")?.value
+          const month = parts.find(p => p.type === "month")?.value
+          const day = parts.find(p => p.type === "day")?.value
           weekDatesInTimezone.push(`${year}-${month}-${day}`)
         }
 
@@ -241,49 +201,16 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Get day of week in user's timezone (0=Sun, 1=Mon, ..., 6=Sat)
-          const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
-          // Map to day index: weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
-          // But sessionDayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
-          // So we need to map: Mon(1) -> 0, Tue(2) -> 1, ..., Sun(0) -> 6
-          let dayIndex = sessionDayOfWeek === 0 ? 6 : sessionDayOfWeek - 1
-          
-          // Find which day index this date corresponds to in the week
-          // This is the source of truth - use the actual date in timezone, not backend grouping
+          // Determine which column this date belongs to (strict match to weekDatesInTimezone)
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
-          if (dateIndex !== -1) {
-            // Date matches a day in the week - use that index
-            dayIndex = dateIndex
-          } else {
-            // Date doesn't match exactly - this happens when timezone causes date shift
-            // For example: Saturday 11 PM in user's timezone = Sunday 4 AM UTC
-            // The backend grouped it under Sunday (UTC), but in user's timezone it's Saturday
-            // We should still show it in Saturday column based on day of week
-            // Only skip if it's clearly outside the week range (more than 1 day off)
-            const weekStartDate = new Date(weekDatesInTimezone[0] + "T00:00:00")
-            const weekEndDate = new Date(weekDatesInTimezone[6] + "T23:59:59")
-            const sessionDate = new Date(sessionDateInTimezone + "T00:00:00")
-            
-            // Calculate days difference
-            const daysDiff = Math.round((sessionDate.getTime() - weekStartDate.getTime()) / (1000 * 60 * 60 * 24))
-            
-            if (daysDiff < -1 || daysDiff > 7) {
-              console.warn(`⚠️ Session date ${sessionDateInTimezone} way outside week range (${daysDiff} days off) - SKIPPING`)
-              return // Skip sessions clearly outside the week
-            }
-            
-            // If day of week suggests it's Saturday (6) and we're looking at Saturday column, use it
-            // Trust the day of week calculation for timezone edge cases
-            console.log(`⚠️ Session date ${sessionDateInTimezone} not in weekDates but dayOfWeek=${sessionDayOfWeek} suggests dayIndex=${dayIndex}, using it`)
-          }
-          
-          // Final validation: make sure dayIndex is valid (0-6)
-          if (dayIndex < 0 || dayIndex > 6) {
-            console.error(`❌ Invalid dayIndex ${dayIndex} for session, skipping`)
+          if (dateIndex === -1) {
+            // If it's outside this week, skip it
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in this week range: ${weekDatesInTimezone.join(", ")}`)
             return
           }
+          const dayIndex = dateIndex // 0 = Mon, 6 = Sun
           
-          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayOfWeek=${sessionDayOfWeek}, DayIndex=${dayIndex} (${days[dayIndex]})`)
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
           sessionsByDayIndex[dayIndex].push(session)
         })
@@ -460,17 +387,20 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     
     // Build the week dates array the same way the calendar does (Monday -> Sunday)
-    const weekStartDateStr = getDateInTimezone(weekStart)
-    const [wsYear, wsMonth, wsDay] = weekStartDateStr.split('-').map(Number)
-    const mondayDate = new Date(wsYear, wsMonth - 1, wsDay)
-    
     const weekDatesInTimezone: string[] = []
     for (let j = 0; j < 7; j++) {
-      const weekDate = new Date(mondayDate)
-      weekDate.setDate(mondayDate.getDate() + j)
-      const y = weekDate.getFullYear()
-      const m = String(weekDate.getMonth() + 1).padStart(2, '0')
-      const d = String(weekDate.getDate()).padStart(2, '0')
+      const weekDateUTC = new Date(weekStart)
+      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      })
+      const parts = formatter.formatToParts(weekDateUTC)
+      const y = parts.find(p => p.type === "year")?.value
+      const m = parts.find(p => p.type === "month")?.value
+      const d = parts.find(p => p.type === "day")?.value
       weekDatesInTimezone.push(`${y}-${m}-${d}`)
     }
     
