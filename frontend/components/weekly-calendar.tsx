@@ -38,6 +38,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const [zoomLevel, setZoomLevel] = useState(1) // 1 = normal, 2 = 2x zoom, etc.
   const [scrollPosition, setScrollPosition] = useState(0) // Scroll position in pixels
   const [currentTime, setCurrentTime] = useState<{ dayIndex: number; hour: number; minute: number } | null>(null)
+  const [resetTime, setResetTime] = useState<{ hour: number; minute: number } | null>(null)
   
   // When viewing someone else's profile, use their subjects; otherwise use viewer's subjects
   const effectiveSubjects = username ? profileSubjects : subjects
@@ -453,6 +454,27 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     }
   }, [weekStart, timezone])
 
+  // Calculate the local time (hour:minute) corresponding to Sunday 00:00 UTC
+  // for the week being displayed. This is when ranks reset.
+  useEffect(() => {
+    // Sunday in UTC for this week (weekStart is Monday UTC, so add 6 days)
+    const sundayUTC = new Date(weekStart)
+    sundayUTC.setUTCDate(weekStart.getUTCDate() + 6)
+    sundayUTC.setUTCHours(0, 0, 0, 0)
+    
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+    const parts = formatter.formatToParts(sundayUTC)
+    const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10)
+    const minute = parseInt(parts.find(p => p.type === "minute")?.value || "0", 10)
+    
+    setResetTime({ hour, minute })
+  }, [weekStart, timezone])
+
   const previousWeek = () => {
     const d = new Date(weekStart)
     d.setUTCDate(d.getUTCDate() - 7)
@@ -642,12 +664,17 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                 <div />
                 {data.length > 0 ? data.map((day, dayIndex) => (
                   <div key={dayIndex} className="relative border-l border-white/10">
-                    {/* Rank reset marker: Sunday (UTC) start - last column (index 6) in Monday-first layout */}
-                    {dayIndex === 6 && (
+                    {/* Rank reset marker: Sunday 00:00 UTC, projected into viewer's timezone */}
+                    {resetTime && dayIndex === 6 && (
                       <div
-                        className="absolute top-0 left-0 right-0 z-20 h-1.5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
-                        title="Ranks reset (Sunday UTC)"
-                      />
+                        className="absolute left-0 right-0 pointer-events-none z-10"
+                        style={{
+                          top: `${((resetTime.hour + resetTime.minute / 60) / 24) * 800 * zoomLevel}px`,
+                        }}
+                        title="Ranks reset (Sunday 00:00 UTC)"
+                      >
+                        <div className="h-0.5 bg-amber-400 w-full relative shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+                      </div>
                     )}
                     {/* Current time indicator - red line (only on today's column) */}
                     {currentTime && currentTime.dayIndex === dayIndex && (

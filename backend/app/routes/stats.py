@@ -83,16 +83,18 @@ def get_date_range(start_date_str=None, end_date_str=None, default_days=None):
         except ValueError:
             return None, None
     
-    # Default: current week (Mon-Sun)
+    # Default: current week (Sun-Sat) in UTC
     today = date.today()
     if default_days:
         start = today - timedelta(days=default_days - 1)
         return start, today
     
-    # Current week (Monday to Sunday)
-    days_since_monday = today.weekday()
-    start = today - timedelta(days=days_since_monday)
-    return start, today
+    # Current week (Sunday to Saturday)
+    # weekday(): Monday=0, Sunday=6
+    days_since_sunday = (today.weekday() + 1) % 7  # Sunday -> 0, Monday ->1, ..., Saturday ->6
+    start = today - timedelta(days=days_since_sunday)
+    end = start + timedelta(days=6)
+    return start, end
 
 def calculate_streak(user_id, end_date=None):
     """Calculate consecutive days with >0 minutes ending on end_date (or today)."""
@@ -335,7 +337,7 @@ def get_weekly():
     if not target_user:
         return jsonify({"error": "User not found or not accessible"}), 404
     
-    # Get week start (default: current week Monday)
+    # Get week start (default: current week Monday, UTC-based to align with dashboard/calendar)
     week_start_str = request.args.get("start_date")
     if week_start_str:
         try:
@@ -344,10 +346,10 @@ def get_weekly():
             return jsonify({"error": "Invalid start_date format"}), 400
     else:
         today = date.today()
-        days_since_monday = today.weekday()
+        days_since_monday = today.weekday()  # 0 = Monday, 6 = Sunday
         week_start = today - timedelta(days=days_since_monday)
     
-    week_end = week_start + timedelta(days=6)
+    week_end = week_start + timedelta(days=6)  # Monday -> Sunday
     
     # Previous week for comparison
     prev_week_start = week_start - timedelta(days=7)
