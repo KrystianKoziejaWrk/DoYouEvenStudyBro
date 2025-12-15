@@ -9,7 +9,7 @@ import ColorBends from "@/components/color-bends"
 import CardSwap, { Card as SwapCard } from "@/components/card-swap"
 import ScrollVelocity from "@/components/scroll-velocity"
 import { useAuth } from "@/lib/auth-provider"
-import { getUserCount } from "@/lib/api"
+import { getUserCount, getGlobalStats } from "@/lib/api"
 
 const AnimatedCounter = memo(function AnimatedCounter({
   target,
@@ -100,18 +100,21 @@ const ranks = [
 export default function LandingPage() {
   const { user } = useAuth()
   const [userCount, setUserCount] = useState(0)
+  const [totalHours, setTotalHours] = useState(0)
   
   useEffect(() => {
-    const loadUserCount = async () => {
+    const loadStats = async () => {
       try {
-        const data = await getUserCount()
-        setUserCount(data.count || 0)
+        const stats = await getGlobalStats()
+        setUserCount(stats.userCount || 0)
+        setTotalHours(stats.totalHours || 0)
       } catch (err) {
-        console.error("Failed to load user count:", err)
+        console.error("Failed to load global stats:", err)
         setUserCount(0)
+        setTotalHours(0)
       }
     }
-    loadUserCount()
+    loadStats()
   }, [])
   
   return (
@@ -196,6 +199,9 @@ export default function LandingPage() {
               analytics.
             </p>
             <AnimatedCounter target={userCount || 1} duration={2000} />
+            <p className="text-lg text-white font-semibold mb-8">
+              {totalHours > 0 ? `${totalHours.toLocaleString()} hours` : "0 hours"} of focused study time tracked
+            </p>
             <div className="flex gap-4">
               <Link href="/tracker">
                 <Button size="lg" className="gap-2 bg-white text-black hover:bg-gray-200">
@@ -364,7 +370,9 @@ export default function LandingPage() {
                 <p className="text-gray-300 mb-6 leading-relaxed">
                   Hi! I built DYESB? to help students track their focus time and to grow as learniners. As
                   someone who struggled with "being so busy all the time", I wanted to create a tool that helps 
-                  me to see how much work I actually do. When I am not programming, you can find me lifting, gaming, or washing windows.
+                  me to see how much work I and others actually do. The goal is to become a better more efficiant learner,
+                  spending less time on styding and more time doing other great things with the precious and little time we have.
+                  When I am not programming, you can find me lifting, gaming, or washing windows. :)
                 </p>
 
                 <div className="flex items-center justify-center md:justify-start gap-4">
