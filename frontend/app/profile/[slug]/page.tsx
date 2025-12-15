@@ -300,6 +300,8 @@ export default function ProfilePage({ params }: { params: Promise<{ slug: string
       ? Math.round(weeklyData.weeklyTotalMinutes || 0)
       : 0
   
+  const totalHours = totalMinutes / 60
+  
   // Calculate weekly hours for ranking (EXACTLY like dashboard: stats.totalMinutes / 60)
   // Dashboard does: const weeklyHours = stats ? stats.totalMinutes / 60 : 0
   const weeklyHours = totalMinutes / 60

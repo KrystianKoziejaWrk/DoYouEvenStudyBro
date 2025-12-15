@@ -407,11 +407,13 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     
     // Find which column index (0-6) matches today's date
     const dayIndex = weekDatesInTimezone.findIndex(dateStr => dateStr === todayDateStr)
+    // Shift indicator back by one day to match expected display alignment
+    const indicatorIndex = dayIndex > 0 ? dayIndex - 1 : dayIndex
     
     // Only show indicator if today is in the current week
-    if (dayIndex >= 0 && dayIndex < 7) {
-      setCurrentTime({ dayIndex, hour, minute })
-      console.log("🕐 Current time indicator:", { dayIndex, hour, minute, todayDateStr, weekDatesInTimezone })
+    if (indicatorIndex >= 0 && indicatorIndex < 7) {
+      setCurrentTime({ dayIndex: indicatorIndex, hour, minute })
+      console.log("🕐 Current time indicator:", { dayIndex: indicatorIndex, hour, minute, todayDateStr, weekDatesInTimezone })
     } else {
       setCurrentTime(null)
       console.log("🕐 Today not in current week:", { todayDateStr, weekDatesInTimezone })
