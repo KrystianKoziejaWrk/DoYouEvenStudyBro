@@ -223,6 +223,18 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         weekEndUTC.setUTCDate(weekStart.getUTCDate() + 6) // Sunday
         weekEndUTC.setUTCHours(23, 59, 59, 999) // End of Sunday
 
+        // Pre-calculate week start/end as UTC date numbers for strict comparison
+        const weekStartDateNum = Date.UTC(
+          weekStart.getUTCFullYear(),
+          weekStart.getUTCMonth(),
+          weekStart.getUTCDate()
+        )
+        const weekEndDateNum = Date.UTC(
+          weekEndUTC.getUTCFullYear(),
+          weekEndUTC.getUTCMonth(),
+          weekEndUTC.getUTCDate()
+        )
+
         sessionsToShow.forEach((session: any) => {
           let startStr = session.started_at
           if (!startStr.includes('Z') && !startStr.includes('+') && !startStr.includes('-', 10)) {
@@ -235,26 +247,16 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // First check: ensure session is within the week's UTC range (Monday 00:00 UTC to Sunday 23:59:59 UTC)
-          // Compare UTC dates strictly to exclude previous week's Sunday
+          // STRICT check: ensure session UTC date is within the week's UTC range (Monday to Sunday)
+          // This MUST pass before any timezone conversion to prevent previous week's Sunday from appearing
           const sessionUTCDateNum = Date.UTC(
             startDateUTC.getUTCFullYear(),
             startDateUTC.getUTCMonth(),
             startDateUTC.getUTCDate()
           )
-          const weekStartDateNum = Date.UTC(
-            weekStart.getUTCFullYear(),
-            weekStart.getUTCMonth(),
-            weekStart.getUTCDate()
-          )
-          const weekEndDateNum = Date.UTC(
-            weekEndUTC.getUTCFullYear(),
-            weekEndUTC.getUTCMonth(),
-            weekEndUTC.getUTCDate()
-          )
           
           if (sessionUTCDateNum < weekStartDateNum || sessionUTCDateNum > weekEndDateNum) {
-            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} outside week range (${new Date(weekStartDateNum).toISOString()} to ${new Date(weekEndDateNum).toISOString()}), skipping: ${session.started_at}`)
+            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} (${new Date(sessionUTCDateNum).toISOString()}) outside week range (${new Date(weekStartDateNum).toISOString()} to ${new Date(weekEndDateNum).toISOString()}), skipping: ${session.started_at}`)
             return
           }
 
@@ -272,7 +274,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
           if (dateIndex === -1) {
             // Session date doesn't match any column - skip it
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} (UTC=${startDateUTC.toISOString()}) not in week dates [${weekDatesInTimezone.join(', ')}], skipping`)
+            // This can happen if timezone conversion causes date mismatch
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} (UTC=${startDateUTC.toISOString()}, UTC date num=${sessionUTCDateNum}) not in week dates [${weekDatesInTimezone.join(', ')}], skipping`)
             return
           }
           
@@ -280,6 +283,20 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           
           if (dayIndex < 0 || dayIndex > 6) {
             console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
+            return
+          }
+          
+          // CRITICAL: Verify the session's UTC date matches the expected UTC date for this column
+          // This prevents previous week's Sunday (which might have same timezone date) from appearing
+          // weekStart is Monday UTC, so dayIndex 0 = Monday UTC, dayIndex 6 = Sunday UTC
+          const expectedUTCDateNum = Date.UTC(
+            weekStart.getUTCFullYear(),
+            weekStart.getUTCMonth(),
+            weekStart.getUTCDate() + dayIndex
+          )
+          
+          if (sessionUTCDateNum !== expectedUTCDateNum) {
+            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} (${new Date(sessionUTCDateNum).toISOString()}) doesn't match expected UTC date for column ${dayIndex} (${new Date(expectedUTCDateNum).toISOString()}), skipping`)
             return
           }
           
