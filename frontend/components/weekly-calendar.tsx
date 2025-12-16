@@ -88,9 +88,6 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
   // Underlying indices: 0=Mon, 1=Tue, ..., 6=Sun (Monday-first calendar)
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  // Visual order: Monday first, Sunday last, but shift data one day left
-  // so what used to appear under Tuesday now appears under Monday, etc.
-  const displayOrder = [1, 2, 3, 4, 5, 6, 0] as const
 
   useEffect(() => {
     const load = async () => {
@@ -178,14 +175,14 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           return `${year}-${month}-${day}`
         }
 
-        // Group sessions by day index (0=Sun, 1=Mon, ..., 6=Sat)
+        // Group sessions by day index (0=Mon, 1=Tue, ..., 6=Sun)
         const sessionsByDayIndex: { [dayIndex: number]: any[] } = {}
         for (let i = 0; i < 7; i++) {
           sessionsByDayIndex[i] = []
         }
 
         // Pre-calculate all dates in the week in user's timezone
-        // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
+        // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
           const weekDateUTC = new Date(weekStart)
@@ -248,9 +245,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
           
-          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
+          // Shift session blocks back one day: Monday(0) -> Sunday(6), Tuesday(1) -> Monday(0), etc.
+          const shiftedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
           
-          sessionsByDayIndex[dayIndex].push(session)
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, OriginalDayIndex=${dayIndex} (${days[dayIndex]}), ShiftedTo=${shiftedDayIndex} (${days[shiftedDayIndex]})`)
+          
+          sessionsByDayIndex[shiftedDayIndex].push(session)
         })
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => {
@@ -568,27 +568,22 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         <div className="min-w-[800px]">
           <div className="grid grid-cols-8 gap-1 mb-2">
             <div className="w-12" />
-            {data.length > 0 ? displayOrder.map((idx) => {
-              const d = data[idx]
-              const labelDay = days[idx]
-              return (
-                <div key={`${labelDay}-${d.date}`} className="text-center">
-                  <p className="text-sm font-medium text-white">{labelDay}</p>
-                  <p className="text-xs text-gray-400">{d.date}</p>
-                  <p className="text-xs text-white mt-1">{minutesToHhMm(d.totalMinutes)}</p>
-                </div>
-              )
-            }) : (
+            {data.length > 0 ? data.map((d, i) => (
+              <div key={i} className="text-center">
+                <p className="text-sm font-medium text-white">{d.day}</p>
+                <p className="text-xs text-gray-400">{d.date}</p>
+                <p className="text-xs text-white mt-1">{minutesToHhMm(d.totalMinutes)}</p>
+              </div>
+            )) : (
               // Show empty week days
               Array.from({ length: 7 }).map((_, i) => {
-                const idx = displayOrder[i]
-                const dayName = days[idx]
+                const dayName = days[i]
                 return (
                   <div key={i} className="text-center">
                     <p className="text-sm font-medium text-white">{dayName}</p>
                     <p className="text-xs text-gray-400">
-                      {weekDatesRender[idx] ? (() => {
-                        const [y, m, d] = weekDatesRender[idx].split('-').map(Number)
+                      {weekDatesRender[i] ? (() => {
+                        const [y, m, d] = weekDatesRender[i].split('-').map(Number)
                         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                         return `${monthNames[m - 1]} ${d}`
                       })() : ""}
@@ -670,11 +665,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
               <div className="grid grid-cols-8 ml-10" style={{ height: `${800 * zoomLevel}px` }}>
                 <div />
-                {data.length > 0 ? displayOrder.map((idx, colIndex) => {
-                  const day = data[idx]
-                  const dayIndex = idx
-                  return (
-                    <div key={colIndex} className="relative border-l border-white/10">
+                {data.length > 0 ? data.map((day, dayIndex) => (
+                  <div key={dayIndex} className="relative border-l border-white/10">
                     {/* Rank reset marker: Sunday 00:00 UTC, projected into viewer's timezone (underlying index 6) */}
                     {resetTime && dayIndex === 6 && (
                       <div
@@ -747,11 +739,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                     )
                     })}
                   </div>
-                  )
-                }) : (
+                )
+              ) : (
                 // Show empty week columns
-                Array.from({ length: 7 }).map((_, colIndex) => (
-                  <div key={colIndex} className="relative border-l border-white/10" />
+                Array.from({ length: 7 }).map((_, dayIndex) => (
+                  <div key={dayIndex} className="relative border-l border-white/10" />
                 ))
               )}
               </div>
