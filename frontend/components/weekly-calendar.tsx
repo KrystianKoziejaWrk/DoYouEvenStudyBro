@@ -61,10 +61,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // Week dates (Sunday -> Saturday) in user's timezone for rendering labels when data is empty
   const weekDatesRender = useMemo(() => {
     const dates: string[] = []
-    // Calculate dates from weekStart (Sunday UTC) in user's timezone
+    // Calculate dates from weekStart (Sunday UTC) in user's timezone, shifted forward by 1 day
     for (let j = 0; j < 7; j++) {
       const weekDateUTC = new Date(weekStart)
-      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j + 1) // +1 to shift dates forward by one day
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
       year: "numeric",
@@ -77,7 +77,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       const d = parts.find(p => p.type === "day")?.value
       dates.push(`${y}-${m}-${d}`)
     }
-    // Return dates as-is (Sunday to Saturday)
+    // Return dates shifted forward by one day (Sunday to Saturday)
     return dates
   }, [weekStart, timezone])
 
@@ -561,10 +561,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             </Button>
             <span className="text-sm text-gray-400 w-32 text-center">
               {(() => {
-                // weekStart is Sunday UTC, convert to user's timezone for display (Sun-Sat)
+                // weekStart is Sunday UTC, convert to user's timezone for display (Sun-Sat), shifted forward by 1 day
                 const startDate = new Date(weekStart)
+                startDate.setUTCDate(weekStart.getUTCDate() + 1) // Shift forward by 1 day
                 const endDate = new Date(weekStart)
-                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Saturday (Sunday + 6 days)
+                endDate.setUTCDate(weekStart.getUTCDate() + 7) // Saturday (Sunday + 6 days + 1 day shift)
                 const startStr = startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 const endStr = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 return `${startStr} - ${endStr}`
