@@ -355,7 +355,7 @@ function TrackerPageContent() {
               body: JSON.stringify(data),
               keepalive: true, // Critical: allows request to continue after page unload
             }).then(() => {
-              console.log("✅ Session saved on page unload")
+                console.log("✅ Session saved on page unload")
               // Clear backup on success
               localStorage.removeItem("focus_tracker_pending_session")
             }).catch((err) => {
@@ -555,7 +555,7 @@ function TrackerPageContent() {
             // Session 30+ seconds - normal save flow
             setIsRunning(false)
             setShowPopup(true)
-            await handleSaveSession()
+          await handleSaveSession()
           }
         }
       }}

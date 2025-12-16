@@ -397,17 +397,17 @@ def google_oauth_callback():
                 email_domain = email.split("@")[1].lower()
                 
                 # Create new user
-                user = User(
-                    email=email,
-                    email_domain=email_domain,
-                    google_sub=google_sub,
+        user = User(
+            email=email,
+            email_domain=email_domain,
+            google_sub=google_sub,
                     display_name=display_name,
-                    username=username,
-                    created_at=utc_now()
-                )
+            username=username,
+            created_at=utc_now()
+        )
                 
                 try:
-                    db.session.add(user)
+        db.session.add(user)
                     db.session.flush()  # Flush to get user.id
                     
                     # Create default "All Subjects" subject for new user
@@ -419,7 +419,7 @@ def google_oauth_callback():
                         created_at=utc_now()
                     )
                     db.session.add(default_subject)
-                    db.session.commit()
+        db.session.commit()
                     print(f"✅ Created new user: {user.id} ({user.email}) with username: {user.username}")
                     user_was_created = True
                 except Exception as e:
@@ -428,7 +428,7 @@ def google_oauth_callback():
                     import traceback
                     traceback.print_exc()
                     return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
-            else:
+    else:
                 # No pending signup data - user needs to signup first
                 return jsonify({
                     "error": "Account not found. Please sign up first.",
@@ -504,11 +504,11 @@ def google_login_post():
         
         from datetime import timedelta
         access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=7))
-        
-        return jsonify({
-            "access_token": access_token,
-            "user": user.to_dict()
-        }), 200
+    
+    return jsonify({
+        "access_token": access_token,
+        "user": user.to_dict()
+    }), 200
     else:
         # User doesn't exist - they need to signup
         return jsonify({"error": "Account not found. Please sign up first."}), 404

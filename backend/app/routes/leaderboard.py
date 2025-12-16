@@ -33,13 +33,12 @@ def get_leaderboard_data(user_ids=None, days=7):
     Includes users with 0 hours.
     Uses Monday-to-Sunday week (matching dashboard).
     """
-    # Calculate current week in UTC (Monday to today)
+    # Calculate current week in UTC (Sunday to Saturday)
     # Use UTC to ensure everyone is on the same timezone basis
     today_utc = datetime.now(timezone.utc).date()
-    days_since_monday = today_utc.weekday()  # 0 = Monday, 6 = Sunday
-    week_start = today_utc - timedelta(days=days_since_monday)
-    # Use today as end date
-    week_end = today_utc
+    days_since_sunday = (today_utc.weekday() + 1) % 7  # Sunday -> 0
+    week_start = today_utc - timedelta(days=days_since_sunday)
+    week_end = week_start + timedelta(days=6)
     
     print(f"📊 Leaderboard query: {len(user_ids) if user_ids else 'all'} users, week {week_start} to {week_end} (UTC)")
     

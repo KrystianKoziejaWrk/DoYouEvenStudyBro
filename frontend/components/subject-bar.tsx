@@ -222,9 +222,9 @@ export default function SubjectBar() {
               <DropdownMenuItem
                 onClick={() => {
                   if (allSubjects) {
-                    setEditingSubject(allSubjects)
+                  setEditingSubject(allSubjects)
                     setNewSubjectColor(allSubjects.color || "#f59f0a")
-                    setShowColorPicker(true)
+                  setShowColorPicker(true)
                   }
                 }}
                 className="text-white hover:bg-white/10"

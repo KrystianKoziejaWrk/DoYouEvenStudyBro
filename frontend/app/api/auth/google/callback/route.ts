@@ -56,11 +56,12 @@ export async function GET(request: NextRequest) {
       const encodedToken = encodeURIComponent(data.access_token)
       return NextResponse.redirect(new URL(`/dashboard?token=${encodedToken}`, request.url))
     } else if (response.status === 404 && data.email) {
-      // User doesn't exist - redirect to signup page
+      // User doesn't exist - redirect to signup page with a friendly hint
       const signupUrl = new URL(`/signup`, request.url)
       signupUrl.searchParams.set("email", data.email)
       if (data.name) signupUrl.searchParams.set("name", data.name)
       if (data.google_sub) signupUrl.searchParams.set("google_sub", data.google_sub)
+      signupUrl.searchParams.set("info", "account_not_found")
       return NextResponse.redirect(signupUrl)
     } else {
       // Backend returned an error - show it

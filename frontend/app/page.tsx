@@ -10,6 +10,7 @@ import CardSwap, { Card as SwapCard } from "@/components/card-swap"
 import ScrollVelocity from "@/components/scroll-velocity"
 import { useAuth } from "@/lib/auth-provider"
 import { getUserCount, getGlobalStats } from "@/lib/api"
+import { minutesToHhMm } from "@/lib/utils"
 
 const AnimatedCounter = memo(function AnimatedCounter({
   target,
@@ -100,18 +101,18 @@ const ranks = [
 export default function LandingPage() {
   const { user } = useAuth()
   const [userCount, setUserCount] = useState(0)
-  const [totalHours, setTotalHours] = useState(0)
+  const [totalMinutes, setTotalMinutes] = useState(0)
   
   useEffect(() => {
     const loadStats = async () => {
       try {
         const stats = await getGlobalStats()
         setUserCount(stats.userCount || 0)
-        setTotalHours(stats.totalHours || 0)
+        setTotalMinutes(stats.totalMinutes || 0)
       } catch (err) {
         console.error("Failed to load global stats:", err)
         setUserCount(0)
-        setTotalHours(0)
+        setTotalMinutes(0)
       }
     }
     loadStats()
@@ -200,7 +201,7 @@ export default function LandingPage() {
             </p>
             <AnimatedCounter target={userCount || 1} duration={2000} />
             <p className="text-lg text-white font-semibold mb-8">
-              {totalHours > 0 ? `${totalHours.toLocaleString()} hours` : "0 hours"} of focused study time tracked
+              {minutesToHhMm(totalMinutes)} of focused study time tracked
             </p>
             <div className="flex gap-4">
               <Link href="/tracker">

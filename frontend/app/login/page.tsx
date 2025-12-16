@@ -56,14 +56,15 @@ function LoginPageContent() {
     setError(null)
 
     try {
-      // Get client ID - hardcoded fallback for reliability
+      // Get client ID - hardcoded fallback for reliability (always available)
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "803284551348-u7jt1888te4a2vp2jhuq4p8rvcvg5302.apps.googleusercontent.com"
       
       console.log("🔍 Google Login Debug:")
-      console.log("- Client ID from env:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND")
-      console.log("- Using Client ID:", clientId)
+      console.log("- Client ID from env:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND (using fallback)")
+      console.log("- Using Client ID:", clientId ? "Found" : "ERROR")
       
-      if (clientId && typeof window !== "undefined") {
+      // Always redirect if we have a client ID (which we always do with fallback)
+      if (typeof window !== "undefined" && clientId) {
         // Real Google OAuth - redirect to Google
         const redirectUri = `${window.location.origin}/api/auth/google/callback`
         const scope = "openid email profile"
@@ -71,7 +72,6 @@ function LoginPageContent() {
         
         console.log("🚀 Redirecting to Google OAuth")
         console.log("- Redirect URI:", redirectUri)
-        console.log("- Full URL (first 100 chars):", authUrl.substring(0, 100))
         
         // Use window.location.href for redirect
         window.location.href = authUrl
@@ -79,8 +79,8 @@ function LoginPageContent() {
         return
       }
       
-      // No Google Client ID - show error
-      throw new Error("Google OAuth is not configured. Please contact support.")
+      // This should never happen with fallback, but just in case
+      throw new Error("Unable to initialize Google OAuth. Please refresh the page and try again.")
     } catch (err: any) {
       console.error("Login error:", err)
       const errorMessage = err.message || err.toString() || "Login failed. Check console for details."
