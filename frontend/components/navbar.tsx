@@ -8,6 +8,7 @@ import { useFilterStore } from "@/lib/store"
 import { useAuth } from "@/lib/auth-provider"
 
 const TIMEZONES = [
+  "UTC",
   "America/New_York",
   "America/Chicago",
   "America/Denver",

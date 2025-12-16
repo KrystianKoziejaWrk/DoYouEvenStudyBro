@@ -257,19 +257,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // Calculate dayIndex directly from UTC date difference from weekStart
-          // This ensures sessions are placed based on their actual UTC day, not timezone conversion
-          // Shift back by 1 day to match the shifted date labels
-          const diffMs = sessionUTCDateNum - weekStartDateNum
-          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-          const dayIndex = diffDays - 1 // Shift back by 1 day to match shifted date labels
-          
-          if (dayIndex < 0 || dayIndex > 6) {
-            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at} (UTC=${startDateUTC.toISOString()})`)
-            return
-          }
-          
-          // Get the session's date in user's timezone for display/debugging
+          // Get the session's date in user's timezone (YYYY-MM-DD format)
           const sessionDateInTimezone = getDateInTimezone(startDateUTC)
           const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -278,7 +266,22 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // NO SHIFT - place sessions directly in their correct column based on UTC day
+          // Match session to column based on its timezone date matching the shifted weekDatesInTimezone
+          // This ensures sessions appear in the correct column for their timezone date
+          const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
+          if (dateIndex === -1) {
+            // Session date doesn't match any column - skip it
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} (UTC=${startDateUTC.toISOString()}) not in week dates [${weekDatesInTimezone.join(', ')}], skipping`)
+            return
+          }
+          
+          const dayIndex = dateIndex
+          
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at} (UTC=${startDateUTC.toISOString()})`)
+            return
+          }
+          
           console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
           sessionsByDayIndex[dayIndex].push(session)
