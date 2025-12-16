@@ -210,6 +210,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           subject: s.subject
         })))
 
+        // Calculate week boundaries in UTC for strict validation
+        const weekEndUTC = new Date(weekStart)
+        weekEndUTC.setUTCDate(weekStart.getUTCDate() + 6) // Sunday
+        weekEndUTC.setUTCHours(23, 59, 59, 999) // End of Sunday
+
         sessionsToShow.forEach((session: any) => {
           let startStr = session.started_at
           if (!startStr.includes('Z') && !startStr.includes('+') && !startStr.includes('-', 10)) {
@@ -222,6 +227,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
+          // First check: ensure session is within the week's UTC range (Monday 00:00 UTC to Sunday 23:59:59 UTC)
+          if (startDateUTC < weekStart || startDateUTC > weekEndUTC) {
+            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} outside week range (${weekStart.toISOString()} to ${weekEndUTC.toISOString()}), skipping: ${session.started_at}`)
+            return
+          }
+
           // Get the session's date in user's timezone
           const sessionDateInTimezone = getDateInTimezone(startDateUTC)
           const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
@@ -231,11 +242,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Determine which column this date belongs to (strict match only - skip if not in current week)
+          // Second check: ensure session date matches one of the week's dates in timezone
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
           if (dateIndex === -1) {
             // Session is not in the current week - skip it (prevents previous week's Sunday from appearing)
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in current week, skipping: ${session.started_at}`)
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in current week dates, skipping: ${session.started_at}`)
             return
           }
           const dayIndex = dateIndex
