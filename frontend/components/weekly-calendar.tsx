@@ -231,15 +231,15 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Determine which column this date belongs to (prefer strict match, fallback to weekday)
+          // Determine which column this date belongs to (strict match only - skip if not in current week)
           const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
-          let dayIndex = dateIndex
           if (dateIndex === -1) {
-            // Fallback: use weekday in user's timezone (0=Sun...6=Sat)
-            const sessionDayOfWeek = getDayOfWeekInTimezone(startDateUTC)
-            dayIndex = sessionDayOfWeek
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in week list, falling back to weekday=${sessionDayOfWeek}`)
+            // Session is not in the current week - skip it (prevents previous week's Sunday from appearing)
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in current week, skipping: ${session.started_at}`)
+            return
           }
+          const dayIndex = dateIndex
+          
           if (dayIndex < 0 || dayIndex > 6) {
             console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
             return
