@@ -1,51 +1,74 @@
-## DoYouEvenStudyBro (DYESB?) – Full Stack Focus Tracker
+## DoYouEvenStudyBro (DYESB?)
 
-DoYouEvenStudyBro is a full‑stack productivity app that tracks focused study sessions, aggregates stats, and lets you compare your grind with friends and the global community.
-
-At a high level:
-
-- **Frontend (`frontend/`)**: Next.js App Router + React, TypeScript, Zustand store, and a set of reusable UI components. It renders the dashboard, tracker, leaderboard, calendar, friends, settings, and profile pages, and talks to the backend via a typed API client.
-- **Backend (`backend/`)**: Flask app factory with SQLAlchemy ORM, Flask‑JWT‑Extended for auth, Flask‑Migrate for migrations. It exposes REST endpoints under `/api/*` for auth, users, subjects, sessions, stats, friends, and leaderboards.
-- **Database**: SQLite in development (file in `backend/instance/focus.db`), with configuration ready to switch to Postgres via the `DATABASE_URL` environment variable (used in production on Heroku).
-- **Auth flow**: Google OAuth in the browser → backend issues a signed JWT → frontend stores the token in `localStorage` → all subsequent API calls include `Authorization: Bearer <token>`.
-
-You can export this README as a PDF (Print → Save as PDF) and use it as a study/interview reference.
+Full‑stack focus tracker that lets you time study sessions, see your stats, and compare your grind with friends and the global leaderboard.
 
 ---
 
-## 0. High‑Level Architecture
+### Tech Stack
 
-### 0.1 Frontend ↔ Backend Data Flow
+- **Frontend**: Next.js (App Router), React, TypeScript, Zustand, Tailwind/shadcn UI  
+- **Backend**: Flask, SQLAlchemy, Flask‑JWT‑Extended, Flask‑Migrate  
+- **Database**: SQLite locally, Postgres in production (via `DATABASE_URL`)  
+- **Auth**: Google OAuth → backend issues JWT → frontend stores token and sends `Authorization: Bearer <token>` on API calls  
 
-- **Base API URL**: configured in `frontend/lib/api.ts` as `API_BASE`, coming from `NEXT_PUBLIC_API_URL` or defaulting to `http://127.0.0.1:5001/api`.
-- **API client**:
-  - All requests go through the `apiFetch` helper in `frontend/lib/api.ts`.
-  - `getAccessToken()` reads `localStorage.getItem("access_token")` and, if present, attaches it as:
-    - `Authorization: Bearer <token>` header on every authenticated request.
-- **Route mapping (examples)**:
-  - `/dashboard` → loads the main `Dashboard` component (`frontend/components/dashboard.tsx`), which in turn calls:
-    - `getStatsSummary` → `GET /api/stats/summary`
-    - `getStatsBySubject` → `GET /api/stats/by-subject`
-    - `getStatsDaily` → `GET /api/stats/daily`
-    - `getStatsYearly` → `GET /api/stats/yearly`
-    - `getStatsWeekly` → `GET /api/stats/weekly`
-    - `getSubjects` → `GET /api/subjects`
-    - `getCurrentUser` → `GET /api/users/me`
-  - `/tracker` → stopwatch + subject selector, creates sessions via:
-    - `createSession` → `POST /api/sessions/`
-  - `/leaderboard` → toggles between:
-    - **Global** → `GET /api/leaderboard/global`
-    - **Friends** → `GET /api/leaderboard/friends`
-    - **Domain** → `GET /api/leaderboard/domain`
-  - `/friends` → uses:
-    - `GET /api/friends/` → list accepted friends
-    - `GET /api/friends/requests/incoming` / `outgoing`
-    - `POST /api/friends/request` / `POST /api/friends/accept/<id>` / `DELETE /api/friends/decline/<id>`
-  - `/settings` → profile & privacy:
-    - `GET /api/users/me`, `PATCH /api/users/me`
-  - `/profile/[slug]` → read‑only view of another user’s stats:
-    - same stats endpoints as dashboard, but with `username` passed as a query param, plus:
-    - `GET /api/users/<username>`
+---
+
+### Project Structure
+
+- `frontend/` – Next.js app  
+  - `app/` – routes (`/`, `/dashboard`, `/tracker`, `/leaderboard`, `/friends`, `/settings`, `/profile/[slug]`, etc.)  
+  - `components/` – dashboard widgets, charts, navbar, calendar, reusable UI  
+  - `lib/` – API client (`api.ts`), Zustand store (`store.ts`), types and utilities  
+- `backend/` – Flask API  
+  - `app/__init__.py` – app factory + extension and blueprint registration  
+  - `app/models.py` – `User`, `Subject`, `FocusSession`, `Friend`  
+  - `app/routes/` – blueprints: `auth`, `users`, `sessions`, `subjects`, `stats`, `friends`, `leaderboard`  
+  - `migrations/` – Alembic migrations  
+
+---
+
+### Running Locally
+
+1. **Backend**
+   - `cd backend`  
+   - Create and activate a virtualenv  
+   - Install deps: `pip install -r requirements.txt`  
+   - Set env (at minimum):  
+     - `SECRET_KEY`, `JWT_SECRET_KEY`  
+     - `FLASK_APP=manage.py`  
+   - Initialize DB (first time): `flask db upgrade`  
+   - Run server: `python manage.py` (default `http://127.0.0.1:5001`)  
+
+2. **Frontend**
+   - `cd frontend`  
+   - Install deps: `pnpm install` (or `npm install`)  
+   - Set env: `NEXT_PUBLIC_API_URL=http://127.0.0.1:5001/api`  
+   - Run dev server: `pnpm dev` (default `http://localhost:3000`)  
+
+---
+
+### Key Flows
+
+- **Signup/Login**
+  - Frontend uses Google OAuth, then calls:  
+    - `POST /api/auth/signup` or `POST /api/auth/login`  
+  - Backend validates user and returns `{ access_token, user }`  
+  - Frontend saves token to `localStorage` and all subsequent API calls go through `frontend/lib/api.ts`  
+
+- **Sessions → Stats**
+  - `/tracker` page posts focus sessions to `POST /api/sessions/`  
+  - Stats endpoints under `/api/stats/*` aggregate those sessions into:  
+    - Weekly hours, streak, XP, rank  
+    - Subject breakdown, last‑30‑days line chart, yearly heatmap  
+  - Dashboard components consume these responses and render charts and the weekly calendar  
+
+---
+
+### Deployment (Typical Setup)
+
+- **Backend**: Deployed to a platform like Heroku with `DATABASE_URL` pointing to Postgres.  
+- **Frontend**: Deployed on Vercel, configured with `NEXT_PUBLIC_API_URL` pointing at the backend `/api` base URL.  
+- **Secrets**: All `.env` files, DB files, and virtualenvs are ignored by Git via `.gitignore` and should only live in your deployment/config vars.  
 
 ### 0.2 Auth Flow End‑to‑End
 
