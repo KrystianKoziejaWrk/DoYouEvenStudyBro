@@ -74,7 +74,25 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       const d = parts.find(p => p.type === "day")?.value
       dates.push(`${y}-${m}-${d}`)
     }
-    return dates
+    // Shift dates forward by one day to match shifted data display
+    // sessionsByDayIndex mapping after shift:
+    //   [0] = Tuesday's data, [1] = Wednesday's data, ..., [5] = Sunday's data, [6] = Monday's data
+    // Display columns: [0]=Mon, [1]=Tue, [2]=Wed, [3]=Thu, [4]=Fri, [5]=Sat, [6]=Sun
+    // So: Column 0 (Mon) shows schedule[0] (Tue data) → should show Tue date (dates[1])
+    //     Column 1 (Tue) shows schedule[1] (Wed data) → should show Wed date (dates[2])
+    //     ...
+    //     Column 5 (Sat) shows schedule[5] (Sun data) → should show Sun date (dates[6])
+    //     Column 6 (Sun) shows schedule[6] (Mon data) → should show Mon date (dates[0])
+    const shiftedDates: string[] = []
+    for (let i = 0; i < 7; i++) {
+      // Column i shows data from schedule[i], which comes from sessionsByDayIndex[i]
+      // sessionsByDayIndex[i] has data from original dayIndex where (dayIndex + 6) % 7 = i
+      // So dayIndex = (i - 6) % 7 = (i + 1) % 7
+      // Therefore column i should show date from dates[(i + 1) % 7]
+      const sourceIndex = (i + 1) % 7
+      shiftedDates.push(dates[sourceIndex])
+    }
+    return shiftedDates
   }, [weekStart, timezone])
 
   const [weeklyStats, setWeeklyStats] = useState({
@@ -228,8 +246,25 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           }
 
           // First check: ensure session is within the week's UTC range (Monday 00:00 UTC to Sunday 23:59:59 UTC)
-          if (startDateUTC < weekStart || startDateUTC > weekEndUTC) {
-            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} outside week range (${weekStart.toISOString()} to ${weekEndUTC.toISOString()}), skipping: ${session.started_at}`)
+          // Compare UTC dates (not just time) to strictly exclude previous week's Sunday
+          const sessionUTCDate = new Date(Date.UTC(
+            startDateUTC.getUTCFullYear(),
+            startDateUTC.getUTCMonth(),
+            startDateUTC.getUTCDate()
+          ))
+          const weekStartDate = new Date(Date.UTC(
+            weekStart.getUTCFullYear(),
+            weekStart.getUTCMonth(),
+            weekStart.getUTCDate()
+          ))
+          const weekEndDate = new Date(Date.UTC(
+            weekEndUTC.getUTCFullYear(),
+            weekEndUTC.getUTCMonth(),
+            weekEndUTC.getUTCDate()
+          ))
+          
+          if (sessionUTCDate < weekStartDate || sessionUTCDate > weekEndDate) {
+            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} (date: ${sessionUTCDate.toISOString()}) outside week range (${weekStart.toISOString()} to ${weekEndUTC.toISOString()}), skipping: ${session.started_at}`)
             return
           }
 
