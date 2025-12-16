@@ -47,21 +47,21 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // When viewing someone else's profile, don't apply viewer's filters
   const shouldFilterBySubject = !username && !showAllSubjects && selectedSubject !== undefined
   
-  // Use UTC-based Monday as the anchor for the week (0 = Monday ... 6 = Sunday)
-  const getMondayUTC = (d: Date) => {
+  // Use UTC-based Sunday as the anchor for the week (0 = Sunday ... 6 = Saturday)
+  const getSundayUTC = (d: Date) => {
     const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
     const day = utc.getUTCDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
-    const diff = (day + 6) % 7 // days since Monday
+    const diff = day // days since Sunday (0 = Sunday, so diff = 0)
     utc.setUTCDate(utc.getUTCDate() - diff)
     utc.setUTCHours(0, 0, 0, 0)
     return utc
   }
-  const [weekStart, setWeekStart] = useState<Date>(() => getMondayUTC(new Date()))
+  const [weekStart, setWeekStart] = useState<Date>(() => getSundayUTC(new Date()))
   
-  // Week dates (Monday -> Sunday) in user's timezone for rendering labels when data is empty
+  // Week dates (Sunday -> Saturday) in user's timezone for rendering labels when data is empty
   const weekDatesRender = useMemo(() => {
     const dates: string[] = []
-    // Calculate dates from weekStart (Monday UTC) in user's timezone
+    // Calculate dates from weekStart (Sunday UTC) in user's timezone
     for (let j = 0; j < 7; j++) {
       const weekDateUTC = new Date(weekStart)
       weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
@@ -77,7 +77,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       const d = parts.find(p => p.type === "day")?.value
       dates.push(`${y}-${m}-${d}`)
     }
-    // NO SHIFT - return dates as-is (Monday to Sunday)
+    // Return dates as-is (Sunday to Saturday)
     return dates
   }, [weekStart, timezone])
 
@@ -90,8 +90,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   })
 
   const hours = Array.from({ length: 24 }, (_, i) => i)
-  // Underlying indices: 0=Mon, 1=Tue, ..., 6=Sun (Monday-first calendar)
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  // Underlying indices: 0=Sun, 1=Mon, ..., 6=Sat (Sunday-first calendar)
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
   useEffect(() => {
     const load = async () => {
@@ -145,7 +145,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           }
         }
 
-        // Helper to get day of week in user's timezone (0=Monday, 1=Tuesday, ..., 6=Sunday)
+        // Helper to get day of week in user's timezone (0=Sunday, 1=Monday, ..., 6=Saturday)
         const getDayOfWeekInTimezone = (utcDate: Date): number => {
           const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -179,14 +179,14 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           return `${year}-${month}-${day}`
         }
 
-        // Group sessions by day index (0=Mon, 1=Tue, ..., 6=Sun)
+        // Group sessions by day index (0=Sun, 1=Mon, ..., 6=Sat)
         const sessionsByDayIndex: { [dayIndex: number]: any[] } = {}
         for (let i = 0; i < 7; i++) {
           sessionsByDayIndex[i] = []
         }
 
         // Pre-calculate all dates in the week in user's timezone
-        // Each index represents a day column (0=Mon, 1=Tue, ..., 6=Sun)
+        // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
           const weekDateUTC = new Date(weekStart)
@@ -216,8 +216,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
         // Calculate week boundaries in UTC for strict validation
         const weekEndUTC = new Date(weekStart)
-        weekEndUTC.setUTCDate(weekStart.getUTCDate() + 6) // Sunday
-        weekEndUTC.setUTCHours(23, 59, 59, 999) // End of Sunday
+        weekEndUTC.setUTCDate(weekStart.getUTCDate() + 6) // Saturday (Sunday + 6 days)
+        weekEndUTC.setUTCHours(23, 59, 59, 999) // End of Saturday
 
         // Pre-calculate week start/end as UTC date numbers for strict comparison
         const weekStartDateNum = Date.UTC(
@@ -243,8 +243,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // STRICT check: ensure session UTC date is within the week's UTC range (Monday to Sunday)
-          // This MUST pass before any timezone conversion to prevent previous week's Sunday from appearing
+          // STRICT check: ensure session UTC date is within the week's UTC range (Sunday to Saturday)
+          // This MUST pass before any timezone conversion to prevent previous week's sessions from appearing
           const sessionUTCDateNum = Date.UTC(
             startDateUTC.getUTCFullYear(),
             startDateUTC.getUTCMonth(),
@@ -296,7 +296,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         console.log("🎨 Subject map (using", username ? "profile" : "viewer", "subjects):", Array.from(subjectMap.entries()).map(([name, sub]) => `${name}: ${sub.color}`).join(", "))
         
         const schedule: DaySchedule[] = []
-        // weekDatesInTimezone[0] = Monday, [1] = Tuesday, ..., [6] = Sunday
+        // weekDatesInTimezone[0] = Sunday, [1] = Monday, ..., [6] = Saturday
         for (let i = 0; i < 7; i++) {
           // Get the date string in user's timezone for this column (already calculated)
           const dateForColumn = weekDatesInTimezone[i]
@@ -363,7 +363,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             const [year, month, day] = sessionDateInTimezone.split('-').map(Number)
             const dateStr = `${month}/${day}`
             
-            // Get day name (Mon, Tue, etc.) - i is the dayIndex (0=Mon, 1=Tue, ..., 6=Sun)
+            // Get day name (Sun, Mon, etc.) - i is the dayIndex (0=Sun, 1=Mon, ..., 6=Sat)
             const dayName = days[i]
 
           return {
@@ -561,11 +561,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             </Button>
             <span className="text-sm text-gray-400 w-32 text-center">
               {(() => {
-                // weekStart is Monday UTC, convert to user's timezone for display (Mon-Sun)
+                // weekStart is Sunday UTC, convert to user's timezone for display (Sun-Sat)
                 const startDate = new Date(weekStart)
-                startDate.setUTCDate(weekStart.getUTCDate() + 1) // shift forward one day
                 const endDate = new Date(weekStart)
-                endDate.setUTCDate(weekStart.getUTCDate() + 7) // shift forward one day for end
+                endDate.setUTCDate(weekStart.getUTCDate() + 6) // Saturday (Sunday + 6 days)
                 const startStr = startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 const endStr = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })
                 return `${startStr} - ${endStr}`
@@ -712,8 +711,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                 <div />
                 {data.length > 0 ? data.map((day, dayIndex) => (
                   <div key={dayIndex} className="relative border-l border-white/10">
-                    {/* Rank reset marker: Sunday 00:00 UTC, projected into viewer's timezone (underlying index 6) */}
-                    {resetTime && dayIndex === 6 && (
+                    {/* Rank reset marker: Sunday 00:00 UTC, projected into viewer's timezone (index 0 = Sunday) */}
+                    {resetTime && dayIndex === 0 && (
                       <div
                         className="absolute left-0 right-0 pointer-events-none z-10"
                         style={{
