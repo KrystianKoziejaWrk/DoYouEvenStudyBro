@@ -77,7 +77,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       dates.push(`${y}-${m}-${d}`)
     }
     // Shift dates forward by one day to match shifted data display
-    // Column 0 (Mon) shows data from Tuesday, so show Tuesday's date
+    // Column 0 (Mon) shows Monday's data (shifted from Tuesday), so show Tuesday's date
+    // Column 6 (Sun) shows Sunday's data (shifted from Monday), so show Monday's date
     const shiftedDates: string[] = []
     for (let i = 0; i < 7; i++) {
       shiftedDates.push(dates[(i + 1) % 7])
@@ -260,7 +261,18 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // Get the session's date in user's timezone (YYYY-MM-DD format)
+          // Calculate dayIndex directly from UTC date difference from weekStart
+          // This ensures sessions are placed based on their actual UTC day, not timezone conversion
+          const diffMs = sessionUTCDateNum - weekStartDateNum
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+          const dayIndex = diffDays
+          
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at} (UTC=${startDateUTC.toISOString()})`)
+            return
+          }
+          
+          // Get the session's date in user's timezone for display/debugging
           const sessionDateInTimezone = getDateInTimezone(startDateUTC)
           const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -268,37 +280,6 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             minute: "2-digit",
             hour12: false
           }).format(startDateUTC)
-          
-          // Match session to column based on its date in user's timezone
-          // This ensures sessions appear in the correct day column for the user's timezone
-          const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
-          if (dateIndex === -1) {
-            // Session date doesn't match any column - skip it
-            // This can happen if timezone conversion causes date mismatch
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} (UTC=${startDateUTC.toISOString()}, UTC date num=${sessionUTCDateNum}) not in week dates [${weekDatesInTimezone.join(', ')}], skipping`)
-            return
-          }
-          
-          const dayIndex = dateIndex
-          
-          if (dayIndex < 0 || dayIndex > 6) {
-            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
-            return
-          }
-          
-          // CRITICAL: Verify the session's UTC date matches the expected UTC date for this column
-          // This prevents previous week's Sunday (which might have same timezone date) from appearing
-          // weekStart is Monday UTC, so dayIndex 0 = Monday UTC, dayIndex 6 = Sunday UTC
-          const expectedUTCDateNum = Date.UTC(
-            weekStart.getUTCFullYear(),
-            weekStart.getUTCMonth(),
-            weekStart.getUTCDate() + dayIndex
-          )
-          
-          if (sessionUTCDateNum !== expectedUTCDateNum) {
-            console.warn(`⚠️ Session UTC date ${startDateUTC.toISOString()} (${new Date(sessionUTCDateNum).toISOString()}) doesn't match expected UTC date for column ${dayIndex} (${new Date(expectedUTCDateNum).toISOString()}), skipping`)
-            return
-          }
           
           // Shift blocks back one day for display (Mon->Sun, Tue->Mon, ..., Sun->Sat)
           const shiftedDayIndex = (dayIndex + 6) % 7
