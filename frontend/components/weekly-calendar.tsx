@@ -233,7 +233,17 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // Get the session's date in user's timezone
+          // Calculate day index directly from UTC date difference (0=Monday, 1=Tuesday, ..., 6=Sunday)
+          const diffMs = startDateUTC.getTime() - weekStart.getTime()
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+          const dayIndex = diffDays
+          
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
+            return
+          }
+
+          // Get the session's date in user's timezone for display
           const sessionDateInTimezone = getDateInTimezone(startDateUTC)
           const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -242,26 +252,9 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Second check: ensure session date matches one of the week's dates in timezone
-          const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
-          if (dateIndex === -1) {
-            // Session is not in the current week - skip it (prevents previous week's Sunday from appearing)
-            console.warn(`⚠️ Session date ${sessionDateInTimezone} not in current week dates, skipping: ${session.started_at}`)
-            return
-          }
-          const dayIndex = dateIndex
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
-          if (dayIndex < 0 || dayIndex > 6) {
-            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
-            return
-          }
-          
-          // Shift session blocks back one day: Monday(0) -> Sunday(6), Tuesday(1) -> Monday(0), etc.
-          const shiftedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
-          
-          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, OriginalDayIndex=${dayIndex} (${days[dayIndex]}), ShiftedTo=${shiftedDayIndex} (${days[shiftedDayIndex]})`)
-          
-          sessionsByDayIndex[shiftedDayIndex].push(session)
+          sessionsByDayIndex[dayIndex].push(session)
         })
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => {
