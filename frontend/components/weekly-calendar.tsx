@@ -18,6 +18,7 @@ interface FocusBlock {
   startTime: string
   endTime: string
   date: string // m/day format for debugging
+  day: string // day name (Mon, Tue, etc.)
 }
 
 interface DaySchedule {
@@ -76,14 +77,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       const d = parts.find(p => p.type === "day")?.value
       dates.push(`${y}-${m}-${d}`)
     }
-    // Shift dates forward by one day to match shifted data display
-    // Column 0 (Mon) shows Monday's data (shifted from Tuesday), so show Tuesday's date
-    // Column 6 (Sun) shows Sunday's data (shifted from Monday), so show Monday's date
-    const shiftedDates: string[] = []
-    for (let i = 0; i < 7; i++) {
-      shiftedDates.push(dates[(i + 1) % 7])
-    }
-    return shiftedDates
+    // NO SHIFT - return dates as-is (Monday to Sunday)
+    return dates
   }, [weekStart, timezone])
 
   const [weeklyStats, setWeeklyStats] = useState({
@@ -281,12 +276,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             hour12: false
           }).format(startDateUTC)
           
-          // Shift blocks back one day for display (Mon->Sun, Tue->Mon, ..., Sun->Sat)
-          const shiftedDayIndex = (dayIndex + 6) % 7
+          // NO SHIFT - place sessions directly in their correct column based on UTC day
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
-          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]}), ShiftedTo=${shiftedDayIndex} (${days[shiftedDayIndex]})`)
-          
-          sessionsByDayIndex[shiftedDayIndex].push(session)
+          sessionsByDayIndex[dayIndex].push(session)
         })
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => {
@@ -369,6 +362,9 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             const sessionDateInTimezone = getDateInTimezone(startDateUTC)
             const [year, month, day] = sessionDateInTimezone.split('-').map(Number)
             const dateStr = `${month}/${day}`
+            
+            // Get day name (Mon, Tue, etc.) - i is the dayIndex (0=Mon, 1=Tue, ..., 6=Sun)
+            const dayName = days[i]
 
           return {
               startHour: startHourDecimal,
@@ -378,6 +374,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
               startTime: startTimeStr,
               endTime: endTimeStr,
               date: dateStr, // m/day format for debugging
+              day: dayName, // day name for tooltip
             }
           }).filter(block => block !== null) as FocusBlock[]
 
@@ -493,13 +490,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     
     // Find which column index (0-6) matches today's date
     const dayIndex = weekDatesInTimezone.findIndex(dateStr => dateStr === todayDateStr)
-    // Shift indicator back by one day to match session blocks display (Mon->Sun, Tue->Mon, ..., Sun->Sat)
-    const indicatorIndex = dayIndex >= 0 ? (dayIndex + 6) % 7 : -1
     
+    // NO SHIFT - place indicator directly in correct column
     // Only show indicator if today is in the current week
-    if (indicatorIndex >= 0 && indicatorIndex < 7) {
-      setCurrentTime({ dayIndex: indicatorIndex, hour, minute })
-      console.log("🕐 Current time indicator:", { dayIndex: indicatorIndex, hour, minute, todayDateStr, weekDatesInTimezone })
+    if (dayIndex >= 0 && dayIndex < 7) {
+      setCurrentTime({ dayIndex: dayIndex, hour, minute })
+      console.log("🕐 Current time indicator:", { dayIndex: dayIndex, hour, minute, todayDateStr, weekDatesInTimezone })
     } else {
       setCurrentTime(null)
       console.log("🕐 Today not in current week:", { todayDateStr, weekDatesInTimezone })
@@ -777,7 +773,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                           <TooltipContent className="bg-gray-900 border-white/10 text-white">
                             <p className="font-semibold">{block.subject}</p>
                             <p className="text-sm text-white">
-                              {block.startTime} - {block.endTime}
+                              {block.day} {block.date} - {block.startTime} - {block.endTime}
                             </p>
                             <p className="text-xs text-gray-400">
                               Duration: {minutesToHhMm(Math.round(block.duration * 60))}
