@@ -258,9 +258,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
           
-          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
+          // Shift blocks back one day for display (Mon->Sun, Tue->Mon, ..., Sun->Sat)
+          const shiftedDayIndex = (dayIndex + 6) % 7
           
-          sessionsByDayIndex[dayIndex].push(session)
+          console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]}), ShiftedTo=${shiftedDayIndex} (${days[shiftedDayIndex]})`)
+          
+          sessionsByDayIndex[shiftedDayIndex].push(session)
         })
 
         console.log("📊 Sessions by day index:", Object.keys(sessionsByDayIndex).map(i => {
@@ -454,8 +457,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     
     // Find which column index (0-6) matches today's date
     const dayIndex = weekDatesInTimezone.findIndex(dateStr => dateStr === todayDateStr)
-    // Shift indicator back by one day to match expected display alignment
-    const indicatorIndex = dayIndex > 0 ? dayIndex - 1 : dayIndex
+    // Shift indicator back by one day to match session blocks display (Mon->Sun, Tue->Mon, ..., Sun->Sat)
+    const indicatorIndex = dayIndex >= 0 ? (dayIndex + 6) % 7 : -1
     
     // Only show indicator if today is in the current week
     if (indicatorIndex >= 0 && indicatorIndex < 7) {
