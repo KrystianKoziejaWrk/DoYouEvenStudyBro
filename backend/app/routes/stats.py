@@ -83,17 +83,17 @@ def get_date_range(start_date_str=None, end_date_str=None, default_days=None):
         except ValueError:
             return None, None
     
-    # Default: current week (Sun-Sat) in UTC
+    # Default: current week (Mon-Sun) in UTC (matching calendar/dashboard)
     today = date.today()
     if default_days:
         start = today - timedelta(days=default_days - 1)
         return start, today
     
-    # Current week (Sunday to Saturday)
+    # Current week (Monday to Sunday) - matching calendar and weekly endpoint
     # weekday(): Monday=0, Sunday=6
-    days_since_sunday = (today.weekday() + 1) % 7  # Sunday -> 0, Monday ->1, ..., Saturday ->6
-    start = today - timedelta(days=days_since_sunday)
-    end = start + timedelta(days=6)
+    days_since_monday = today.weekday()  # Monday -> 0, Tuesday -> 1, ..., Sunday -> 6
+    start = today - timedelta(days=days_since_monday)
+    end = start + timedelta(days=6)  # Monday -> Sunday
     return start, end
 
 def calculate_streak(user_id, end_date=None):

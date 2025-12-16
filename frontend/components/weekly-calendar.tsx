@@ -62,12 +62,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     for (let j = 0; j < 7; j++) {
       const weekDateUTC = new Date(weekStart)
       weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        year: "numeric",
-        month: "2-digit",
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
         day: "2-digit"
-      })
+    })
       const parts = formatter.formatToParts(weekDateUTC)
       const y = parts.find(p => p.type === "year")?.value
       const m = parts.find(p => p.type === "month")?.value
@@ -233,17 +233,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             return
           }
 
-          // Calculate day index directly from UTC date difference (0=Monday, 1=Tuesday, ..., 6=Sunday)
-          const diffMs = startDateUTC.getTime() - weekStart.getTime()
-          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-          const dayIndex = diffDays
-          
-          if (dayIndex < 0 || dayIndex > 6) {
-            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
-            return
-          }
-
-          // Get the session's date in user's timezone for display
+          // Get the session's date in user's timezone (YYYY-MM-DD format)
           const sessionDateInTimezone = getDateInTimezone(startDateUTC)
           const sessionTimeInTimezone = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -251,6 +241,22 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
             minute: "2-digit",
             hour12: false
           }).format(startDateUTC)
+          
+          // Match session to column based on its date in user's timezone
+          // This ensures sessions appear in the correct day column for the user's timezone
+          const dateIndex = weekDatesInTimezone.indexOf(sessionDateInTimezone)
+          if (dateIndex === -1) {
+            // Session date doesn't match any column - skip it
+            console.warn(`⚠️ Session date ${sessionDateInTimezone} (UTC=${startDateUTC.toISOString()}) not in week dates [${weekDatesInTimezone.join(', ')}], skipping`)
+            return
+          }
+          
+          const dayIndex = dateIndex
+          
+          if (dayIndex < 0 || dayIndex > 6) {
+            console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at}`)
+            return
+          }
           
           console.log(`✅ Session: UTC=${startDateUTC.toISOString()}, TZ=${sessionDateInTimezone} ${sessionTimeInTimezone}, DayIndex=${dayIndex} (${days[dayIndex]})`)
           
@@ -696,7 +702,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                         </div>
                       </div>
                     )}
-                    {day.blocks.map((block, blockIndex) => {
+                  {day.blocks.map((block, blockIndex) => {
                     // Calculate position for 24-hour view (0-23) with zoom
                     const containerHeight = 800 * zoomLevel
                     const startPositionPx = (block.startHour / 24) * containerHeight
@@ -741,8 +747,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                         </Tooltip>
                       </TooltipProvider>
                     )
-                    })}
-                  </div>
+                  })}
+                </div>
                 )
               ) : (
                 // Show empty week columns

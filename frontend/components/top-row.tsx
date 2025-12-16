@@ -93,15 +93,23 @@ export default function TopRow() {
   useEffect(() => {
     const load = async () => {
       try {
-        // Get current week dates
-        const today = new Date()
-        const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - daysSinceMonday)
-        const weekEnd = new Date(today)
+        // Get current week dates (Monday-Sunday UTC, matching calendar)
+        const getMondayUTC = (d: Date) => {
+          const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+          const day = utc.getUTCDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
+          const diff = (day + 6) % 7 // days since Monday
+          utc.setUTCDate(utc.getUTCDate() - diff)
+          utc.setUTCHours(0, 0, 0, 0)
+          return utc
+        }
+        
+        const todayUTC = new Date()
+        const weekStartUTC = getMondayUTC(todayUTC)
+        const weekEndUTC = new Date(weekStartUTC)
+        weekEndUTC.setUTCDate(weekStartUTC.getUTCDate() + 6) // Sunday
 
-        const startDate = weekStart.toISOString().split("T")[0]
-        const endDate = weekEnd.toISOString().split("T")[0]
+        const startDate = weekStartUTC.toISOString().split("T")[0]
+        const endDate = weekEndUTC.toISOString().split("T")[0]
 
         const [summary, subjectData, user] = await Promise.all([
           getStatsSummary({ start_date: startDate, end_date: endDate }),
