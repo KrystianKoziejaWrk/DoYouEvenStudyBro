@@ -259,9 +259,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
 
           // Calculate dayIndex directly from UTC date difference from weekStart
           // This ensures sessions are placed based on their actual UTC day, not timezone conversion
+          // Shift back by 1 day to match the shifted date labels
           const diffMs = sessionUTCDateNum - weekStartDateNum
           const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-          const dayIndex = diffDays
+          const dayIndex = diffDays - 1 // Shift back by 1 day to match shifted date labels
           
           if (dayIndex < 0 || dayIndex > 6) {
             console.warn(`⚠️ Computed dayIndex ${dayIndex} out of range for session ${session.started_at} (UTC=${startDateUTC.toISOString()})`)
