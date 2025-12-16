@@ -206,7 +206,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
         }
 
         console.log("📅 Week start (UTC):", weekStart.toISOString())
-        console.log("📅 Week dates in timezone:", weekDatesInTimezone)
+        console.log("📅 Week dates in timezone (shifted +1):", weekDatesInTimezone)
+        console.log("📅 First date (Sunday):", weekDatesInTimezone[0], "should be Dec 14")
         console.log("📅 Total sessions to process:", sessionsToShow.length)
         console.log("📅 All sessions from backend:", sessionsToShow.map((s: any) => ({
           id: s.id,
