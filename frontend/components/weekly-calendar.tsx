@@ -17,6 +17,7 @@ interface FocusBlock {
   color: string
   startTime: string
   endTime: string
+  date: string // m/day format for debugging
 }
 
 interface DaySchedule {
@@ -59,10 +60,10 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
   // Week dates (Monday -> Sunday) in user's timezone for rendering labels when data is empty
   const weekDatesRender = useMemo(() => {
     const dates: string[] = []
-    // Calculate dates starting from weekStart + 1 day to fix "one day behind" issue
+    // Calculate dates from weekStart (Monday UTC) in user's timezone
     for (let j = 0; j < 7; j++) {
       const weekDateUTC = new Date(weekStart)
-      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j + 1) // +1 to fix date display
+      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
       year: "numeric",
@@ -75,7 +76,8 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
       const d = parts.find(p => p.type === "day")?.value
       dates.push(`${y}-${m}-${d}`)
     }
-    // Shift dates to match shifted data: column i shows data from day (i+1) % 7
+    // Shift dates forward by one day to match shifted data display
+    // Column 0 (Mon) shows data from Tuesday, so show Tuesday's date
     const shiftedDates: string[] = []
     for (let i = 0; i < 7; i++) {
       shiftedDates.push(dates[(i + 1) % 7])
@@ -330,33 +332,45 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
               return null
             }
             
-            // Get time parts in the selected timezone
+            // Get time parts in the selected timezone (12-hour format with AM/PM)
             const formatterWithSeconds = new Intl.DateTimeFormat("en-US", {
               timeZone: timezone,
               hour: "2-digit",
               minute: "2-digit",
               second: "2-digit",
-              hour12: false
+              hour12: true
             })
             
             const startParts = formatterWithSeconds.formatToParts(startDateUTC)
             const endParts = formatterWithSeconds.formatToParts(endDateUTC)
             
-            const startHour = parseInt(startParts.find(p => p.type === "hour")?.value || "0", 10)
+            const startHour12 = parseInt(startParts.find(p => p.type === "hour")?.value || "0", 10)
             const startMin = parseInt(startParts.find(p => p.type === "minute")?.value || "0", 10)
             const startSec = parseInt(startParts.find(p => p.type === "second")?.value || "0", 10)
-            const endHour = parseInt(endParts.find(p => p.type === "hour")?.value || "0", 10)
+            const startPeriod = startParts.find(p => p.type === "dayPeriod")?.value || ""
+            const endHour12 = parseInt(endParts.find(p => p.type === "hour")?.value || "0", 10)
             const endMin = parseInt(endParts.find(p => p.type === "minute")?.value || "0", 10)
             const endSec = parseInt(endParts.find(p => p.type === "second")?.value || "0", 10)
+            const endPeriod = endParts.find(p => p.type === "dayPeriod")?.value || ""
             
-            const startHourDecimal = startHour + startMin / 60 + startSec / 3600
+            // Convert to 24-hour for calculations
+            const startHour24 = startPeriod === "PM" && startHour12 !== 12 ? startHour12 + 12 : (startPeriod === "AM" && startHour12 === 12 ? 0 : startHour12)
+            const endHour24 = endPeriod === "PM" && endHour12 !== 12 ? endHour12 + 12 : (endPeriod === "AM" && endHour12 === 12 ? 0 : endHour12)
+            
+            const startHourDecimal = startHour24 + startMin / 60 + startSec / 3600
             const durationHours = session.durationMinutes / 60
 
             const subjectName = session.subject || "All Subjects"
             const subjectColor = subjectMap.get(subjectName)?.color || "#f59f0a"
 
-            const startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')}`
-            const endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:${endSec.toString().padStart(2, '0')}`
+            // Format as 12-hour with AM/PM
+            const startTimeStr = `${startHour12}:${startMin.toString().padStart(2, '0')} ${startPeriod}`
+            const endTimeStr = `${endHour12}:${endMin.toString().padStart(2, '0')} ${endPeriod}`
+            
+            // Get date in m/day format for debugging
+            const sessionDateInTimezone = getDateInTimezone(startDateUTC)
+            const [year, month, day] = sessionDateInTimezone.split('-').map(Number)
+            const dateStr = `${month}/${day}`
 
           return {
               startHour: startHourDecimal,
@@ -365,6 +379,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
               color: subjectColor,
               startTime: startTimeStr,
               endTime: endTimeStr,
+              date: dateStr, // m/day format for debugging
             }
           }).filter(block => block !== null) as FocusBlock[]
 
@@ -756,7 +771,7 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
                               {finalHeightPx >= 20 && (
                                 <>
                               <div className="truncate">{block.subject}</div>
-                                  <div className="text-white/70">{block.duration.toFixed(2)}h</div>
+                                  <div className="text-white/70">{block.date} {block.duration.toFixed(2)}h</div>
                                 </>
                               )}
                             </div>
