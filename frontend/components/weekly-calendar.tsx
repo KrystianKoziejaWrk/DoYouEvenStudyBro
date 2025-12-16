@@ -185,12 +185,12 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
           sessionsByDayIndex[i] = []
         }
 
-        // Pre-calculate all dates in the week in user's timezone
+        // Pre-calculate all dates in the week in user's timezone, shifted forward by 1 day
         // Each index represents a day column (0=Sun, 1=Mon, ..., 6=Sat)
         const weekDatesInTimezone: string[] = []
         for (let j = 0; j < 7; j++) {
           const weekDateUTC = new Date(weekStart)
-          weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+          weekDateUTC.setUTCDate(weekStart.getUTCDate() + j + 1) // +1 to shift dates forward by one day
           // Format in user's timezone to YYYY-MM-DD
           const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone,
@@ -470,11 +470,11 @@ export default function WeeklyCalendar({ username }: WeeklyCalendarProps = {}) {
     // Get today's date string in timezone (YYYY-MM-DD)
     const todayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     
-    // Build the week dates array the same way the calendar does (Sunday -> Saturday)
+    // Build the week dates array the same way the calendar does (Sunday -> Saturday), shifted forward by 1 day
     const weekDatesInTimezone: string[] = []
     for (let j = 0; j < 7; j++) {
       const weekDateUTC = new Date(weekStart)
-      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j)
+      weekDateUTC.setUTCDate(weekStart.getUTCDate() + j + 1) // +1 to shift dates forward by one day
       const formatter = new Intl.DateTimeFormat("en-US", {
         timeZone: timezone,
         year: "numeric",
