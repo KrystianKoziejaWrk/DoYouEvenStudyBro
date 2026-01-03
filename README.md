@@ -2,6 +2,8 @@
 
 > A full-stack study tracking and productivity application that gamifies learning through focus session tracking, social features, and competitive leaderboards.
 
+🌐 **Live Website**: [doyouevenstudybro.com](https://doyouevenstudybro.com)
+
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.1-green.svg)](https://flask.palletsprojects.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
