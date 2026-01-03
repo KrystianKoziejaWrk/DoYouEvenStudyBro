@@ -101,8 +101,15 @@ instance/
 frontend/.next/
 frontend/out/
 frontend/.turbo/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Misc
 *.orig
 .cache/
+
+# Learning/Interview files (not for repository)
+INTERVIEW_EXPLANATION.txt
+LEARNING_ROADMAP.txt
+LEARNING_TREE.txt
 
